@@ -13,7 +13,6 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
     if (!customer) notFound()
 
     const updateWithId = updateCustomer.bind(null, customer.id)
-    async function handleUpdate(fd: FormData): Promise<void> { await updateWithId(fd) }
 
     return (
         <>
@@ -23,7 +22,7 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
             </div>
 
             <div className="card" style={{ maxWidth: 640 }}>
-                <form action={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <form action={updateWithId} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div className="form-grid-2">
                         <div className="form-group">
                             <label className="form-label" htmlFor="name">Customer Name *</label>

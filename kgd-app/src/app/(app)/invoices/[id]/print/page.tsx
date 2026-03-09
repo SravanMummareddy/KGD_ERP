@@ -19,12 +19,10 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
     const contact = invoice.customer.contacts[0]
 
     return (
-        <html>
-            <head>
-                <title>{invoice.invoiceNumber} — KGD</title>
-                <style>{`
+        <>
+            <style>{`
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 24px; max-width: 700px; margin: auto; }
+          .print-page { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 24px; max-width: 700px; margin: auto; }
           .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 2px solid #111; padding-bottom: 16px; }
           .brand { font-size: 22px; font-weight: 800; letter-spacing: -1px; }
           .brand span { color: #1d4ed8; }
@@ -41,12 +39,11 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
           .totals-row.balance { font-size: 15px; font-weight: 800; border-top: 2px solid #111; margin-top: 4px; padding-top: 6px; color: #dc2626; }
           .footer { text-align: center; font-size: 11px; color: #666; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
           @media print {
-            body { padding: 16px; }
+            .print-page { padding: 16px; }
             @page { margin: 1cm; }
           }
         `}</style>
-            </head>
-            <body>
+            <div className="print-page">
                 {/* Header */}
                 <div className="header">
                     <div>
@@ -67,7 +64,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
                     {invoice.customer.businessName && <div>{invoice.customer.businessName}</div>}
                     {invoice.customer.address && <div style={{ color: '#555' }}>{invoice.customer.address}</div>}
                     {invoice.customer.city && <div style={{ color: '#555' }}>{invoice.customer.city}</div>}
-                    {contact && contact.phone && <div style={{ marginTop: 4 }}>📞 {contact.phone} ({contact.name})</div>}
+                    {contact && contact.phone && <div style={{ marginTop: 4 }}>Phone: {contact.phone} ({contact.name})</div>}
                 </div>
 
                 {/* Items */}
@@ -78,8 +75,8 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
                             <th>Description</th>
                             <th className="num">Qty</th>
                             <th>Unit</th>
-                            <th className="num">Rate (₹)</th>
-                            <th className="num">Amount (₹)</th>
+                            <th className="num">Rate (Rs)</th>
+                            <th className="num">Amount (Rs)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -105,7 +102,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
                     {Number(invoice.discountAmount) > 0 && (
                         <div className="totals-row" style={{ color: '#16a34a' }}>
                             <span>Discount</span>
-                            <span>− {formatCurrency(invoice.discountAmount)}</span>
+                            <span>- {formatCurrency(invoice.discountAmount)}</span>
                         </div>
                     )}
                     <div className="totals-row" style={{ fontWeight: 700, borderTop: '1px solid #ccc', paddingTop: 6, marginTop: 4 }}>
@@ -134,12 +131,12 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
                 )}
 
                 <div className="footer">
-                    Thank you for your business · KGD Paper Plate Manufacturing
+                    Thank you for your business - KGD Paper Plate Manufacturing
                 </div>
 
                 {/* Auto-print on load */}
                 <script dangerouslySetInnerHTML={{ __html: 'window.onload = () => window.print()' }} />
-            </body>
-        </html>
+            </div>
+        </>
     )
 }

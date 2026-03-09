@@ -61,8 +61,7 @@ export default async function InvoiceDetailPage({
                     )}
                     {session.user.role === 'ADMIN' && invoice.status !== 'CANCELLED' && (
                         <form action={cancelInvoice.bind(null, invoice.id)}>
-                            <button type="submit" className="btn btn-danger btn-sm"
-                                onClick={(e) => { if (!confirm('Cancel this invoice?')) e.preventDefault() }}>
+                            <button type="submit" className="btn btn-danger btn-sm">
                                 Cancel
                             </button>
                         </form>

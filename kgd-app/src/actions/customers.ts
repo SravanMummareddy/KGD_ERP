@@ -115,10 +115,10 @@ export async function addContact(customerId: string, formData: FormData): Promis
 
     const parsed = ContactSchema.safeParse({
         name: formData.get('name'),
-        phone: formData.get('phone'),
-        role: formData.get('role'),
+        phone: formData.get('phone') || undefined,
+        role: formData.get('role') || undefined,
         isPrimary: formData.get('isPrimary') === 'on',
-        notes: formData.get('notes'),
+        notes: formData.get('notes') || undefined,
     })
 
     if (!parsed.success) throw new Error(parsed.error.issues[0].message)
