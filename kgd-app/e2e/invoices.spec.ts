@@ -2,11 +2,9 @@ import { test, expect } from '@playwright/test'
 
 /**
  * Invoice E2E tests.
- * 
- * Strategy:
- * 1. Navigate to /customers/new, create a throw-away customer.
- * 2. Create an invoice for that customer via /invoices/new.
- * 3. Verify detail, print, and status update via payment.
+ *
+ * InvoiceForm: React client component — inputs have no `name` attrs.
+ * Selectors: #customerId, placeholder="Description *", nth() for qty/rate number inputs.
  */
 
 const CUST = `Invoice Customer ${Date.now()}`
@@ -17,74 +15,86 @@ test.describe('Invoices', () => {
     let customerId: string
     let invoiceId: string
 
-    // ── SETUP: create a customer to bill ──────────────────────────
+    // ── SETUP: create a customer ──────────────────────────────────
     test.beforeAll(async ({ browser }) => {
-        const page = await browser.newPage()
+        const ctx = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
+        const page = await ctx.newPage()
+
         await page.goto('/customers/new')
-        await page.getByLabel(/customer name/i).fill(CUST)
-        await page.getByRole('button', { name: /save|create/i }).click()
-        await page.waitForURL(/\/customers\/[a-z0-9]+$/)
-        customerId = page.url().split('/customers/')[1]
-        await page.close()
+        await page.locator('#name').fill(CUST)
+
+        await page.getByRole('button', { name: /save customer/i }).click()
+        await expect(page.getByRole('heading', { name: CUST })).toBeVisible({ timeout: 15000 })
+        const urlSegs = page.url().split(/[/?]/)
+        customerId = urlSegs[urlSegs.indexOf('customers') + 1]
+
+        await ctx.close()
     })
 
     // ── CREATE ────────────────────────────────────────────────────
-    test('creates a new invoice', async ({ page }) => {
+    test('creates a new invoice via the line-item form', async ({ page }) => {
         await page.goto(`/invoices/new?customerId=${customerId}`)
-        await expect(page.getByRole('heading', { name: /new invoice/i })).toBeVisible()
+        await expect(page.getByRole('heading', { name: 'New Invoice', exact: true })).toBeVisible()
 
-        // Customer should be pre-selected from query param
-        await expect(page.locator('select[name="customerId"]')).toHaveValue(customerId)
+        // Wait for React to hydrate and populate the select
+        await page.waitForFunction(
+            (id) => {
+                const sel = document.querySelector('#customerId') as HTMLSelectElement
+                return sel && sel.value === id
+            },
+            customerId,
+            { timeout: 10000 }
+        )
 
-        // Add a line item — description + qty + rate  
-        await page.getByPlaceholder(/description/i).first().fill('10 inch Silver Plate 80 GSM')
-        await page.locator('input[name="quantity"]').first().fill('10')
-        await page.locator('input[name="rate"]').first().fill('90')
+        // Description input (no name attr — placeholder is the selector)
+        await page.getByPlaceholder('Description *').fill('10 inch Silver Plate 80 GSM')
 
-        await page.getByRole('button', { name: /create invoice|save/i }).click()
+        // qty = 1st number input in the line-item row; rate = 2nd
+        const numberInputs = page.locator('form input[type="number"]')
+        await numberInputs.nth(0).fill('10')   // qty
+        await numberInputs.nth(1).fill('90')   // rate
 
-        // Should land on invoice detail page
-        await page.waitForURL(/\/invoices\/[a-z0-9]+$/)
-        await expect(page.getByText(/KGD-/i).first()).toBeVisible()
-        invoiceId = page.url().split('/invoices/')[1]
+        await page.getByRole('button', { name: /create invoice/i }).click()
+
+        // Ensure successful navigation away from the 'new' form
+        await page.waitForURL(url => url.pathname.includes('/invoices/') && !url.pathname.includes('/new'), { timeout: 15000 })
+        const invUrlSegs = page.url().split(/[/?]/)
+        invoiceId = invUrlSegs[invUrlSegs.indexOf('invoices') + 1]
+
+        await expect(page.getByText(/unpaid/i).first()).toBeVisible({ timeout: 15000 })
     })
 
     // ── READ ─────────────────────────────────────────────────────
-    test('invoice list shows new invoice', async ({ page }) => {
+    test('invoice appears in the invoices list', async ({ page }) => {
         await page.goto('/invoices')
-        await expect(page.getByText(/KGD-/i).first()).toBeVisible()
+        await expect(page.getByText(/KGD-/).first()).toBeVisible()
     })
 
-    test('invoice detail shows correct amounts', async ({ page }) => {
+    test('invoice detail shows correct total', async ({ page }) => {
         await page.goto(`/invoices/${invoiceId}`)
-        // 10 × ₹90 = ₹900
-        await expect(page.getByText(/900/)).toBeVisible()
-        await expect(page.getByText(/UNPAID/i)).toBeVisible()
+        // 10 × 90 = 900
+        await expect(page.getByText(/900/).first()).toBeVisible()
+        await expect(page.getByText(/unpaid/i).first()).toBeVisible()
     })
 
-    test('invoice detail has a Print button', async ({ page }) => {
+    test('invoice detail has a Print link', async ({ page }) => {
         await page.goto(`/invoices/${invoiceId}`)
-        await expect(page.getByRole('link', { name: /print/i })).toBeVisible()
+        const printLink = page.getByRole('link', { name: /print/i })
+        await expect(printLink).toBeVisible()
+        await expect(printLink).toHaveAttribute('href', `/invoices/${invoiceId}/print`)
     })
 
-    // ── PRINT PAGE ───────────────────────────────────────────────
-    test('print page renders invoice content', async ({ page }) => {
-        // Intercept window.print to prevent dialog
+    test('print page renders without showing dialog', async ({ page }) => {
         await page.addInitScript(() => { window.print = () => { } })
         await page.goto(`/invoices/${invoiceId}/print`)
-        await expect(page.getByText(/KGD/)).toBeVisible()
+        await expect(page.getByText(/KGD/).first()).toBeVisible()
         await expect(page.getByText(/10 inch Silver Plate/i)).toBeVisible()
     })
 
-    // ── CANCEL (admin only) ───────────────────────────────────────
     test('admin can cancel an invoice', async ({ page }) => {
         await page.goto(`/invoices/${invoiceId}`)
-
-        // Mock the confirm dialog to return true
         page.on('dialog', dialog => dialog.accept())
         await page.getByRole('button', { name: /cancel/i }).click()
-
-        await page.waitForURL(`**/invoices/${invoiceId}`)
-        await expect(page.getByText(/CANCELLED/i)).toBeVisible()
+        await expect(page.getByText(/cancelled/i).first()).toBeVisible({ timeout: 15000 })
     })
 })
