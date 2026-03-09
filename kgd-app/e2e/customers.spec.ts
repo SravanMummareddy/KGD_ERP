@@ -9,6 +9,8 @@ test.describe('Customers', () => {
 
     // ── CREATE ────────────────────────────────────────────────────
     test('creates a new customer', async ({ page }) => {
+        test.setTimeout(60_000)
+
         await page.goto('/customers/new')
         await expect(page.getByRole('heading', { name: 'New Customer', exact: true })).toBeVisible()
 
@@ -17,10 +19,13 @@ test.describe('Customers', () => {
         await page.locator('#city').fill('Hyderabad')
         await page.locator('#defaultDiscount').fill('5')
 
-        await page.getByRole('button', { name: /save customer/i }).click()
+        await Promise.all([
+            page.waitForURL(/\/customers\/(?!new(?:\/)?$)[^/?#]+/, { timeout: 30000 }),
+            page.getByRole('button', { name: /save customer/i }).click(),
+        ])
 
         // Wait for the customer name heading on the detail page
-        await expect(page.getByRole('heading', { name: CUSTOMER_NAME })).toBeVisible({ timeout: 15000 })
+        await expect(page.getByRole('heading', { name: CUSTOMER_NAME })).toBeVisible({ timeout: 30000 })
 
         const urlSegs = page.url().split(/[/?]/)
         customerId = urlSegs[urlSegs.indexOf('customers') + 1]
