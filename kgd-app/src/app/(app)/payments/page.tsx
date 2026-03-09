@@ -8,6 +8,7 @@ export default async function PaymentsPage() {
     const session = await auth()
     if (!session?.user) redirect('/login')
 
+    type PaymentRow = Awaited<ReturnType<typeof prisma.payment.findMany>>[number]
     const payments = await prisma.payment.findMany({
         include: { customer: true, allocations: { include: { invoice: true } } },
         orderBy: { paymentDate: 'desc' },
@@ -44,7 +45,7 @@ export default async function PaymentsPage() {
                                 </td>
                             </tr>
                         )}
-                        {payments.map((pay) => (
+                        {payments.map((pay: PaymentRow) => (
                             <tr key={pay.id}>
                                 <td className="text-muted">{formatDate(pay.paymentDate)}</td>
                                 <td>
@@ -59,7 +60,7 @@ export default async function PaymentsPage() {
                                 <td style={{ fontSize: '0.8rem' }}>
                                     {pay.allocations.length === 0
                                         ? <span className="text-muted">Unallocated</span>
-                                        : pay.allocations.map((a) => (
+                                        : pay.allocations.map((a: PaymentRow['allocations'][number]) => (
                                             <div key={a.id}>
                                                 <Link href={`/invoices/${a.invoiceId}`} style={{ color: 'var(--color-primary)', fontSize: '0.8rem' }}>
                                                     {a.invoice.invoiceNumber}

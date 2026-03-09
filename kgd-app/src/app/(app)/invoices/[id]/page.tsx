@@ -8,13 +8,14 @@ import { cancelInvoice } from '@/actions/invoices'
 export default async function InvoiceDetailPage({
     params,
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
+    const { id } = await params
     const session = await auth()
     if (!session?.user) redirect('/login')
 
     const invoice = await prisma.invoice.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             customer: { include: { contacts: { where: { isPrimary: true }, take: 1 } } },
             items: { orderBy: { sortOrder: 'asc' } },
@@ -27,6 +28,9 @@ export default async function InvoiceDetailPage({
     })
 
     if (!invoice) notFound()
+
+    type ItemRow = typeof invoice.items[number]
+    type AllocRow = typeof invoice.allocations[number]
 
     const info = invoiceStatusInfo(invoice.status)
     const primaryContact = invoice.customer.contacts[0]
@@ -111,7 +115,7 @@ export default async function InvoiceDetailPage({
                                 </tr>
                             </thead>
                             <tbody>
-                                {invoice.items.map((item) => (
+                                {invoice.items.map((item: ItemRow) => (
                                     <tr key={item.id}>
                                         <td style={{ padding: '0.625rem 0.25rem' }}>
                                             <div style={{ fontWeight: 500 }}>{item.description}</div>
@@ -200,7 +204,7 @@ export default async function InvoiceDetailPage({
                         {invoice.allocations.length === 0 ? (
                             <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem' }}>No payments recorded yet.</p>
                         ) : (
-                            invoice.allocations.map((alloc) => (
+                            invoice.allocations.map((alloc: AllocRow) => (
                                 <div key={alloc.id} style={{ marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                         <span className="badge badge-green">{paymentMethodLabel(alloc.payment.method)}</span>

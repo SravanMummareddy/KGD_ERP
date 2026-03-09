@@ -8,13 +8,14 @@ import { addContact } from '@/actions/customers'
 export default async function CustomerDetailPage({
     params,
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
+    const { id } = await params
     const session = await auth()
     if (!session?.user) redirect('/login')
 
     const customer = await prisma.customer.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             contacts: { orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }] },
         },
@@ -24,23 +25,27 @@ export default async function CustomerDetailPage({
 
     // Get all invoices for the customer (ledger)
     const invoices = await prisma.invoice.findMany({
-        where: { customerId: params.id },
+        where: { customerId: id },
         orderBy: { invoiceDate: 'desc' },
         include: { _count: { select: { items: true } } },
     })
 
     // Get all payments for the customer
     const payments = await prisma.payment.findMany({
-        where: { customerId: params.id },
+        where: { customerId: id },
         orderBy: { paymentDate: 'desc' },
     })
 
     // Calculate totals
-    const totalBilled = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0)
-    const totalPaid = invoices.reduce((sum, inv) => sum + Number(inv.paidAmount), 0)
+    type InvoiceRow = typeof invoices[number]
+    type PaymentRow = typeof payments[number]
+    type ContactRow = typeof customer.contacts[number]
+
+    const totalBilled = invoices.reduce((sum: number, inv: InvoiceRow) => sum + Number(inv.totalAmount), 0)
+    const totalPaid = invoices.reduce((sum: number, inv: InvoiceRow) => sum + Number(inv.paidAmount), 0)
     const totalOutstanding = invoices
-        .filter((inv) => inv.status !== 'PAID' && inv.status !== 'CANCELLED')
-        .reduce((sum, inv) => sum + Number(inv.balanceDue), 0)
+        .filter((inv: InvoiceRow) => inv.status !== 'PAID' && inv.status !== 'CANCELLED')
+        .reduce((sum: number, inv: InvoiceRow) => sum + Number(inv.balanceDue), 0)
 
     // Build a combined ledger timeline
     type LedgerEntry =
@@ -48,7 +53,7 @@ export default async function CustomerDetailPage({
         | { type: 'payment'; date: Date; label: string; amount: number; method: string; notes: string | null }
 
     const ledger: LedgerEntry[] = [
-        ...invoices.map((inv) => ({
+        ...invoices.map((inv: InvoiceRow) => ({
             type: 'invoice' as const,
             date: inv.invoiceDate,
             label: inv.invoiceNumber,
@@ -57,7 +62,7 @@ export default async function CustomerDetailPage({
             id: inv.id,
             itemCount: inv._count.items,
         })),
-        ...payments.map((pay) => ({
+        ...payments.map((pay: PaymentRow) => ({
             type: 'payment' as const,
             date: pay.paymentDate,
             label: `Payment via ${paymentMethodLabel(pay.method)}`,
@@ -181,7 +186,7 @@ export default async function CustomerDetailPage({
                         {customer.contacts.length === 0 && (
                             <p className="text-muted" style={{ margin: 0 }}>No contacts added yet.</p>
                         )}
-                        {customer.contacts.map((c) => (
+                        {customer.contacts.map((c: ContactRow) => (
                             <div key={c.id} style={{ marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{c.name}</span>

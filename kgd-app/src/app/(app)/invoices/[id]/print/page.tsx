@@ -2,9 +2,10 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
-export default async function InvoicePrintPage({ params }: { params: { id: string } }) {
+export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const invoice = await prisma.invoice.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             customer: { include: { contacts: { where: { isPrimary: true }, take: 1 } } },
             items: { orderBy: { sortOrder: 'asc' } },
@@ -12,6 +13,8 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
     })
 
     if (!invoice) notFound()
+
+    type PrintItemRow = typeof invoice.items[number]
 
     const contact = invoice.customer.contacts[0]
 
@@ -80,7 +83,7 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
                         </tr>
                     </thead>
                     <tbody>
-                        {invoice.items.map((item, i) => (
+                        {invoice.items.map((item: PrintItemRow, i: number) => (
                             <tr key={item.id}>
                                 <td style={{ color: '#888', width: 24 }}>{i + 1}</td>
                                 <td>

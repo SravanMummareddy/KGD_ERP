@@ -4,11 +4,12 @@ import { notFound, redirect } from 'next/navigation'
 import { updateCustomer } from '@/actions/customers'
 import Link from 'next/link'
 
-export default async function EditCustomerPage({ params }: { params: { id: string } }) {
+export default async function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const session = await auth()
     if (!session?.user) redirect('/login')
 
-    const customer = await prisma.customer.findUnique({ where: { id: params.id } })
+    const customer = await prisma.customer.findUnique({ where: { id } })
     if (!customer) notFound()
 
     const updateWithId = updateCustomer.bind(null, customer.id)

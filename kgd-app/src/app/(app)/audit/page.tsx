@@ -14,6 +14,7 @@ export default async function AuditLogPage() {
         take: 200,
     })
 
+    type LogRow = typeof logs[number]
     const actionBadge = { CREATE: 'badge-green', UPDATE: 'badge-blue', DELETE: 'badge-red' }
 
     return (
@@ -44,7 +45,7 @@ export default async function AuditLogPage() {
                                 </td>
                             </tr>
                         )}
-                        {logs.map((log) => (
+                        {logs.map((log: LogRow) => (
                             <tr key={log.id}>
                                 <td className="text-muted" style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
                                     {formatDateTime(log.performedAt)}

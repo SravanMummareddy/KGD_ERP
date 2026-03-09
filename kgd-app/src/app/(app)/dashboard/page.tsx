@@ -67,12 +67,16 @@ export default async function DashboardPage() {
     ])
 
     // Resolve customer names for top debtors
-    const customerIds = topDebtors.map((d) => d.customerId)
+    type InvRow = typeof recentInvoices[number]
+    type DebtorRow = typeof topDebtors[number]
+    type PayRow = typeof recentPayments[number]
+
+    const customerIds = topDebtors.map((d: DebtorRow) => d.customerId)
     const customerNames = await prisma.customer.findMany({
         where: { id: { in: customerIds } },
         select: { id: true, name: true },
     })
-    const nameMap = new Map(customerNames.map((c) => [c.id, c.name]))
+    const nameMap = new Map(customerNames.map((c: { id: string; name: string }) => [c.id, c.name]))
 
     const totalOutstanding = Number(totalOutstandingResult._sum.balanceDue ?? 0)
 
@@ -140,7 +144,7 @@ export default async function DashboardPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {recentInvoices.map((inv) => {
+                                {recentInvoices.map((inv: InvRow) => {
                                     const info = invoiceStatusInfo(inv.status)
                                     return (
                                         <tr key={inv.id}>
@@ -184,11 +188,11 @@ export default async function DashboardPage() {
                                         </td>
                                     </tr>
                                 )}
-                                {topDebtors.map((d) => (
+                                {topDebtors.map((d: DebtorRow) => (
                                     <tr key={d.customerId}>
                                         <td style={{ fontWeight: 500 }}>
                                             <Link href={`/customers/${d.customerId}`} style={{ color: 'var(--color-text)', textDecoration: 'none' }}>
-                                                {nameMap.get(d.customerId) ?? 'Unknown'}
+                                                {String(nameMap.get(d.customerId) ?? 'Unknown')}
                                             </Link>
                                         </td>
                                         <td style={{ textAlign: 'right' }} className="text-money text-danger">
@@ -222,7 +226,7 @@ export default async function DashboardPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {recentPayments.map((pay) => (
+                                    {recentPayments.map((pay: PayRow) => (
                                         <tr key={pay.id}>
                                             <td className="text-muted" style={{ fontSize: '0.8rem' }}>{formatDate(pay.paymentDate)}</td>
                                             <td style={{ fontWeight: 500, fontSize: '0.85rem' }}>{pay.customer.name}</td>

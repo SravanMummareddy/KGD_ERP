@@ -8,12 +8,12 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 export default async function NewPaymentPage({
     searchParams,
 }: {
-    searchParams: { customerId?: string; invoiceId?: string }
+    searchParams: Promise<{ customerId?: string; invoiceId?: string }>
 }) {
     const session = await auth()
     if (!session?.user) redirect('/login')
 
-    const { customerId: defaultCustomerId, invoiceId: defaultInvoiceId } = searchParams
+    const { customerId: defaultCustomerId, invoiceId: defaultInvoiceId } = await searchParams
 
     const customers = await prisma.customer.findMany({
         where: { isActive: true },
@@ -27,6 +27,9 @@ export default async function NewPaymentPage({
             orderBy: { invoiceDate: 'asc' },
         })
         : []
+
+    type CustomerRow = typeof customers[number]
+    type OpenInvoiceRow = typeof openInvoices[number]
 
     return (
         <>
@@ -45,7 +48,7 @@ export default async function NewPaymentPage({
                         <label className="form-label" htmlFor="customerId">Customer *</label>
                         <select id="customerId" name="customerId" className="form-select" defaultValue={defaultCustomerId || ''} required>
                             <option value="">— Select Customer —</option>
-                            {customers.map((c) => (
+                            {customers.map((c: CustomerRow) => (
                                 <option key={c.id} value={c.id}>{c.name}{c.businessName ? ` (${c.businessName})` : ''}</option>
                             ))}
                         </select>
@@ -95,7 +98,7 @@ export default async function NewPaymentPage({
                         <div className="form-group">
                             <label className="form-label">Apply to Invoices (select which to settle)</label>
                             <div style={{ border: '1px solid var(--color-border)', borderRadius: '0.5rem', overflow: 'hidden' }}>
-                                {openInvoices.map((inv) => (
+                                {openInvoices.map((inv: OpenInvoiceRow) => (
                                     <label key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)', cursor: 'pointer' }}>
                                         <input
                                             type="checkbox"
@@ -119,8 +122,8 @@ export default async function NewPaymentPage({
                         type="hidden"
                         name="invoiceIds"
                         value={openInvoices
-                            .filter((_, i) => i >= 0)  // include all — form checkboxes override this
-                            .map((i) => i.id)
+                            .filter((_: unknown, i: number) => i >= 0)  // include all — form checkboxes override this
+                            .map((i: { id: string }) => i.id)
                             .join(',')}
                     />
 

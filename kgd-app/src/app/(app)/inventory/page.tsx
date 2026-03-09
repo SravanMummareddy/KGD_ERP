@@ -16,6 +16,7 @@ export default async function InventoryPage() {
     })
 
     // Group by category
+    type ItemRow = typeof items[number]
     const grouped: Record<string, typeof items> = {}
     for (const item of items) {
         if (!grouped[item.category]) grouped[item.category] = []
@@ -47,7 +48,7 @@ export default async function InventoryPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {categoryItems.map((item) => (
+                                        {categoryItems.map((item: ItemRow) => (
                                             <tr key={item.id}>
                                                 <td style={{ fontWeight: 500 }}>{item.name}</td>
                                                 <td style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: Number(item.currentStock) <= 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
@@ -80,7 +81,7 @@ export default async function InventoryPage() {
                                 <label className="form-label">Item *</label>
                                 <select name="inventoryItemId" className="form-select" required>
                                     <option value="">— Select item —</option>
-                                    {items.map((item) => (
+                                    {items.map((item: ItemRow) => (
                                         <option key={item.id} value={item.id}>{item.name} ({Number(item.currentStock).toFixed(2)} {item.unit})</option>
                                     ))}
                                 </select>
