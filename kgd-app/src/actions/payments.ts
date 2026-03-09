@@ -10,6 +10,16 @@ export async function recordPayment(formData: FormData) {
     const session = await auth()
     if (!session?.user) redirect('/login')
 
+    // Session JWT can become stale after DB reset/reseed.
+    // Resolve to a live user record before writing FK fields.
+    let actorId = session.user.id
+    let actor = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } })
+    if (!actor && session.user.email) {
+        actor = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
+        if (actor) actorId = actor.id
+    }
+    if (!actor) redirect('/login')
+
     const customerId = formData.get('customerId') as string
     const amount = parseFloat(formData.get('amount') as string)
     const paymentDate = formData.get('paymentDate') as string
@@ -34,7 +44,7 @@ export async function recordPayment(formData: FormData) {
             method: method as 'CASH' | 'UPI' | 'BANK_TRANSFER' | 'CHEQUE' | 'OTHER',
             reference: reference || null,
             notes: notes || null,
-            createdById: session.user.id,
+            createdById: actorId,
         },
     })
 
@@ -78,7 +88,7 @@ export async function recordPayment(formData: FormData) {
 
     await writeAuditLog({
         entity: 'Payment', entityId: payment.id, action: 'CREATE',
-        performedBy: session.user.id,
+        performedBy: actorId,
         newValues: { customerId, amount, method, invoiceIds },
     })
 

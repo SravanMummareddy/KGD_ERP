@@ -13,6 +13,16 @@ export async function createInvoice(formData: FormData) {
     const session = await auth()
     if (!session?.user) redirect('/login')
 
+    // Session JWT can become stale after DB reset/reseed.
+    // Resolve to a live user record before writing FK fields.
+    let actorId = session.user.id
+    let actor = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } })
+    if (!actor && session.user.email) {
+        actor = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
+        if (actor) actorId = actor.id
+    }
+    if (!actor) redirect('/login')
+
     const customerId = formData.get('customerId') as string
     const invoiceDate = formData.get('invoiceDate') as string
     const dueDate = formData.get('dueDate') as string
@@ -77,7 +87,7 @@ export async function createInvoice(formData: FormData) {
             balanceDue,
             status: 'UNPAID',
             remarks: remarks || null,
-            createdById: session.user.id,
+            createdById: actorId,
             items: {
                 create: items.map((item, idx) => ({
                     productId: item.productId || null,
@@ -95,7 +105,7 @@ export async function createInvoice(formData: FormData) {
 
     await writeAuditLog({
         entity: 'Invoice', entityId: invoice.id, action: 'CREATE',
-        performedBy: session.user.id,
+        performedBy: actorId,
         newValues: { invoiceNumber, customerId, totalAmount, status: 'UNPAID' },
     })
 
@@ -112,6 +122,14 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
         throw new Error('Not authorized')
     }
 
+    let actorId = session.user.id
+    let actor = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } })
+    if (!actor && session.user.email) {
+        actor = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
+        if (actor) actorId = actor.id
+    }
+    if (!actor) redirect('/login')
+
     await prisma.invoice.update({
         where: { id: invoiceId },
         data: { status: 'CANCELLED' },
@@ -119,7 +137,7 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
 
     await writeAuditLog({
         entity: 'Invoice', entityId: invoiceId, action: 'UPDATE',
-        performedBy: session.user.id,
+        performedBy: actorId,
         newValues: { status: 'CANCELLED' },
     })
 
