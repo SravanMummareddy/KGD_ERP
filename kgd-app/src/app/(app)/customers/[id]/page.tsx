@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, invoiceStatusInfo, paymentMethodLabel } from '@/lib/utils'
 import { addContact } from '@/actions/customers'
+import { getCustomerOutstandingSummaries } from '@/lib/outstanding'
 
 export default async function CustomerDetailPage({
     params,
@@ -42,10 +43,9 @@ export default async function CustomerDetailPage({
     type ContactRow = typeof customer.contacts[number]
 
     const totalBilled = invoices.reduce((sum: number, inv: InvoiceRow) => sum + Number(inv.totalAmount), 0)
-    const totalPaid = invoices.reduce((sum: number, inv: InvoiceRow) => sum + Number(inv.paidAmount), 0)
-    const totalOutstanding = invoices
-        .filter((inv: InvoiceRow) => inv.status !== 'PAID' && inv.status !== 'CANCELLED')
-        .reduce((sum: number, inv: InvoiceRow) => sum + Number(inv.balanceDue), 0)
+    const totalPaid = payments.reduce((sum: number, pay: PaymentRow) => sum + Number(pay.amount), 0)
+    const [outstanding] = await getCustomerOutstandingSummaries([id])
+    const netOutstanding = outstanding?.netOutstanding ?? 0
 
     // Build a combined ledger timeline
     type LedgerEntry =
@@ -104,10 +104,10 @@ export default async function CustomerDetailPage({
                     <div className="stat-label">Total Paid</div>
                     <div className="stat-value" style={{ color: 'var(--color-success)' }}>{formatCurrency(totalPaid)}</div>
                 </div>
-                <div className="stat-card" style={{ border: totalOutstanding > 0 ? '2px solid #dc2626' : '' }}>
+                <div className="stat-card" style={{ border: netOutstanding > 0 ? '2px solid #dc2626' : '' }}>
                     <div className="stat-label">Outstanding Balance</div>
-                    <div className="stat-value" style={{ color: totalOutstanding > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                        {formatCurrency(totalOutstanding)}
+                    <div className="stat-value" style={{ color: netOutstanding > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                        {formatCurrency(netOutstanding)}
                     </div>
                 </div>
             </div>

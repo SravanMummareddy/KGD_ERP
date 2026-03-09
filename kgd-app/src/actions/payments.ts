@@ -26,14 +26,15 @@ export async function recordPayment(formData: FormData) {
     const method = (formData.get('method') as string) || 'CASH'
     const reference = formData.get('reference') as string
     const notes = formData.get('notes') as string
-    const invoiceIdsRaw = formData.get('invoiceIds') as string  // comma-separated
 
     if (!customerId) throw new Error('Customer is required')
     if (!amount || amount <= 0) throw new Error('Payment amount must be greater than 0')
 
-    const invoiceIds = invoiceIdsRaw
-        ? invoiceIdsRaw.split(',').map((s) => s.trim()).filter(Boolean)
-        : []
+    // Read all checked invoice checkboxes.
+    const invoiceIds = formData
+        .getAll('invoiceIds')
+        .map((v) => String(v).trim())
+        .filter(Boolean)
 
     // Create the payment
     const payment = await prisma.payment.create({
@@ -48,42 +49,45 @@ export async function recordPayment(formData: FormData) {
         },
     })
 
-    // Allocate against invoices
+    // Allocate against invoices.
+    // If user didn't explicitly pick invoices, auto-allocate to all open invoices oldest-first.
     let remaining = amount
-    if (invoiceIds.length > 0) {
-        const invoices = await prisma.invoice.findMany({
-            where: { id: { in: invoiceIds }, customerId },
-            orderBy: { invoiceDate: 'asc' },
+    const invoices = await prisma.invoice.findMany({
+        where: {
+            customerId,
+            status: { in: ['UNPAID', 'PARTIAL'] },
+            ...(invoiceIds.length > 0 ? { id: { in: invoiceIds } } : {}),
+        },
+        orderBy: { invoiceDate: 'asc' },
+    })
+
+    for (const inv of invoices) {
+        if (remaining <= 0) break
+        const due = Number(inv.balanceDue)
+        const allocate = Math.min(remaining, due)
+        if (allocate <= 0) continue
+
+        await prisma.paymentAllocation.create({
+            data: { paymentId: payment.id, invoiceId: inv.id, amount: allocate },
         })
 
-        for (const inv of invoices) {
-            if (remaining <= 0) break
-            const due = Number(inv.balanceDue)
-            const allocate = Math.min(remaining, due)
-            if (allocate <= 0) continue
+        const newPaid = Number(inv.paidAmount) + allocate
+        const newBalance = Number(inv.totalAmount) - newPaid
+        const newStatus =
+            newBalance <= 0 ? 'PAID' :
+                newPaid > 0 ? 'PARTIAL' :
+                    'UNPAID'
 
-            await prisma.paymentAllocation.create({
-                data: { paymentId: payment.id, invoiceId: inv.id, amount: allocate },
-            })
+        await prisma.invoice.update({
+            where: { id: inv.id },
+            data: {
+                paidAmount: newPaid,
+                balanceDue: Math.max(0, newBalance),
+                status: newStatus,
+            },
+        })
 
-            const newPaid = Number(inv.paidAmount) + allocate
-            const newBalance = Number(inv.totalAmount) - newPaid
-            const newStatus =
-                newBalance <= 0 ? 'PAID' :
-                    newPaid > 0 ? 'PARTIAL' :
-                        'UNPAID'
-
-            await prisma.invoice.update({
-                where: { id: inv.id },
-                data: {
-                    paidAmount: newPaid,
-                    balanceDue: Math.max(0, newBalance),
-                    status: newStatus,
-                },
-            })
-
-            remaining -= allocate
-        }
+        remaining -= allocate
     }
 
     await writeAuditLog({

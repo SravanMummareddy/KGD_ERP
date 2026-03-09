@@ -118,15 +118,6 @@ export default async function NewPaymentPage({
                         </div>
                     )}
 
-                    <input
-                        type="hidden"
-                        name="invoiceIds"
-                        value={openInvoices
-                            .filter((_: unknown, i: number) => i >= 0)  // include all — form checkboxes override this
-                            .map((i: { id: string }) => i.id)
-                            .join(',')}
-                    />
-
                     <div className="form-group">
                         <label className="form-label" htmlFor="notes">Notes</label>
                         <textarea id="notes" name="notes" className="form-textarea" rows={2}
@@ -143,3 +134,4 @@ export default async function NewPaymentPage({
         </>
     )
 }
+

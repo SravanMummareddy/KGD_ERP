@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, invoiceStatusInfo, paymentMethodLabel } from '@/lib/utils'
+import { getCustomerOutstandingSummaries } from '@/lib/outstanding'
 
 export default async function DashboardPage() {
     const session = await auth()
@@ -14,20 +15,14 @@ export default async function DashboardPage() {
     const month = new Date(now.getFullYear(), now.getMonth(), 1)
 
     const [
-        totalOutstandingResult,
         todaySalesResult,
         monthSalesResult,
         activeCustomerCount,
         unpaidInvoiceCount,
         recentInvoices,
         recentPayments,
-        topDebtors,
+        activeCustomers,
     ] = await Promise.all([
-        // Total outstanding across all customers
-        prisma.invoice.aggregate({
-            where: { status: { in: ['UNPAID', 'PARTIAL'] } },
-            _sum: { balanceDue: true },
-        }),
         // Today's invoice totals
         prisma.invoice.aggregate({
             where: { invoiceDate: { gte: today }, status: { not: 'CANCELLED' } },
@@ -56,29 +51,23 @@ export default async function DashboardPage() {
             orderBy: { paymentDate: 'desc' },
             take: 5,
         }),
-        // Customers with highest outstanding balances
-        prisma.invoice.groupBy({
-            by: ['customerId'],
-            where: { status: { in: ['UNPAID', 'PARTIAL'] } },
-            _sum: { balanceDue: true },
-            orderBy: { _sum: { balanceDue: 'desc' } },
-            take: 8,
+        prisma.customer.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true },
         }),
     ])
 
     // Resolve customer names for top debtors
     type InvRow = typeof recentInvoices[number]
-    type DebtorRow = typeof topDebtors[number]
     type PayRow = typeof recentPayments[number]
 
-    const customerIds = topDebtors.map((d: DebtorRow) => d.customerId)
-    const customerNames = await prisma.customer.findMany({
-        where: { id: { in: customerIds } },
-        select: { id: true, name: true },
-    })
-    const nameMap = new Map(customerNames.map((c: { id: string; name: string }) => [c.id, c.name]))
-
-    const totalOutstanding = Number(totalOutstandingResult._sum.balanceDue ?? 0)
+    const outstanding = await getCustomerOutstandingSummaries(activeCustomers.map((c) => c.id))
+    const totalOutstanding = outstanding.reduce((sum, o) => sum + o.netOutstanding, 0)
+    const topDebtors = outstanding
+        .filter((o) => o.netOutstanding > 0)
+        .sort((a, b) => b.netOutstanding - a.netOutstanding)
+        .slice(0, 8)
+    const nameMap = new Map(activeCustomers.map((c) => [c.id, c.name]))
 
     return (
         <>
@@ -188,7 +177,7 @@ export default async function DashboardPage() {
                                         </td>
                                     </tr>
                                 )}
-                                {topDebtors.map((d: DebtorRow) => (
+                                {topDebtors.map((d) => (
                                     <tr key={d.customerId}>
                                         <td style={{ fontWeight: 500 }}>
                                             <Link href={`/customers/${d.customerId}`} style={{ color: 'var(--color-text)', textDecoration: 'none' }}>
@@ -196,7 +185,7 @@ export default async function DashboardPage() {
                                             </Link>
                                         </td>
                                         <td style={{ textAlign: 'right' }} className="text-money text-danger">
-                                            {formatCurrency(d._sum.balanceDue ?? 0)}
+                                            {formatCurrency(d.netOutstanding)}
                                         </td>
                                         <td>
                                             <Link href={`/payments/new?customerId=${d.customerId}`} className="btn btn-secondary btn-sm">

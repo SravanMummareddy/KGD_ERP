@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
+import { getCustomerOutstandingSummaries } from '@/lib/outstanding'
 
 export default async function CustomersPage() {
     const session = await auth()
@@ -17,16 +18,8 @@ export default async function CustomersPage() {
         orderBy: { name: 'asc' },
     })
 
-    // Get outstanding balance per customer
-    const balances = await prisma.invoice.groupBy({
-        by: ['customerId'],
-        where: { status: { in: ['UNPAID', 'PARTIAL'] } },
-        _sum: { balanceDue: true },
-    })
-
-    const balanceMap = new Map(
-        balances.map((b) => [b.customerId, b._sum.balanceDue ?? 0])
-    )
+    const outstanding = await getCustomerOutstandingSummaries(customers.map((c) => c.id))
+    const netOutstandingMap = new Map(outstanding.map((o) => [o.customerId, o.netOutstanding]))
 
     return (
         <>
@@ -61,7 +54,7 @@ export default async function CustomersPage() {
                             </tr>
                         )}
                         {customers.map((c) => {
-                            const balance = Number(balanceMap.get(c.id) ?? 0)
+                            const netOutstanding = Number(netOutstandingMap.get(c.id) ?? 0)
                             const contact = c.contacts[0]
                             return (
                                 <tr key={c.id}>
@@ -86,8 +79,10 @@ export default async function CustomersPage() {
                                     </td>
                                     <td className="text-muted">{c._count.invoices}</td>
                                     <td style={{ textAlign: 'right' }}>
-                                        {balance > 0 ? (
-                                            <span className="text-money text-danger">{formatCurrency(balance)}</span>
+                                        {netOutstanding > 0 ? (
+                                            <span className="text-money text-danger">{formatCurrency(netOutstanding)}</span>
+                                        ) : netOutstanding < 0 ? (
+                                            <span className="text-money text-success">{formatCurrency(netOutstanding)}</span>
                                         ) : (
                                             <span className="badge badge-green">Settled</span>
                                         )}
