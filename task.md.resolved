@@ -1,0 +1,68 @@
+# KGD Account Tracking V1 — Task Breakdown
+
+## Phase 1: Planning
+- [x] Review existing requirements documents and notebook photos
+- [/] Create implementation plan (MVP summary, schema, architecture, feature list)
+- [ ] Get user approval on plan
+
+## Phase 2: Project Setup
+- [ ] Initialize Next.js project with TypeScript, Tailwind CSS
+- [ ] Set up Prisma with PostgreSQL
+- [ ] Set up project folder structure
+- [ ] Configure environment and base layout
+
+## Phase 3: Auth & Users
+- [ ] Prisma schema for users
+- [ ] Login page (email + password)
+- [ ] Session / auth middleware (NextAuth or custom)
+- [ ] Role-based access (Admin / Staff)
+
+## Phase 4: Customer Module
+- [ ] Prisma schema for customers + contacts
+- [ ] Customer list page
+- [ ] Create / edit customer form
+- [ ] Customer detail page with ledger
+
+## Phase 5: Product Module
+- [ ] Prisma schema for products
+- [ ] Product list page
+- [ ] Create / edit product form
+
+## Phase 6: Invoice Module
+- [ ] Prisma schema for invoices + invoice_items
+- [ ] Invoice creation form (multi-item, manual rate)
+- [ ] Invoice list page
+- [ ] Invoice detail / print view
+
+## Phase 7: Payment Module
+- [ ] Prisma schema for payments + payment_allocations
+- [ ] Payment recording form
+- [ ] Payment list page
+- [ ] Link payments to invoices
+
+## Phase 8: Customer Ledger
+- [ ] Ledger view combining invoices + payments per customer
+- [ ] Running balance calculation
+- [ ] Outstanding balance summary
+
+## Phase 9: Dashboard
+- [ ] Total outstanding across all customers
+- [ ] Recent invoices and payments
+- [ ] Today / month sales summary
+- [ ] Top customers by balance
+
+## Phase 10: Audit Trail
+- [ ] Prisma schema for audit_logs
+- [ ] Audit logging middleware / utility
+- [ ] Audit log viewer (admin only)
+
+## Phase 11: Basic Inventory
+- [ ] Prisma schema for inventory_items + inventory_transactions
+- [ ] Inventory list page
+- [ ] Manual stock entry / adjustment
+
+## Phase 12: Verification & Polish
+- [ ] End-to-end testing of core flows
+- [ ] UI polish and responsiveness
+- [ ] Print invoice testing
+- [ ] Final walkthrough

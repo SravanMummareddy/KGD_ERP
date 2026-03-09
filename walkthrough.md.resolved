@@ -1,0 +1,130 @@
+# KGD Account Tracker — V1 Setup & Launch Guide
+
+## ✅ What's Built
+
+All V1 features are complete and code-ready:
+
+| Feature | Status |
+|---|---|
+| Auth (login/session/roles) | ✅ |
+| Customer list, create, edit, detail | ✅ |
+| Contact management per customer | ✅ |
+| Customer ledger (invoices + payments timeline) | ✅ |
+| Products (plates & sheets), create/edit | ✅ |
+| Invoice creation (multi-item, manual rates) | ✅ |
+| Invoice list, detail, cancel | ✅ |
+| Invoice print view (auto-opens print dialog) | ✅ |
+| Payment recording with invoice allocation | ✅ |
+| Payments list | ✅ |
+| Dashboard (stats, outstanding balances, recent activity) | ✅ |
+| Inventory (stock tracking, manual movements) | ✅ |
+| Audit log (admin-only) | ✅ |
+
+---
+
+## 🚀 Steps to Run Locally
+
+### 1. Setup PostgreSQL Database
+
+Create a database named `kgd_tracker` (or any name):
+
+```sql
+CREATE DATABASE kgd_tracker;
+```
+
+### 2. Update [.env](file:///c:/Users/smummare/OneDrive%20-%20Arizona%20State%20University/From%20Lumin%20-%20sort%20them/Documents/projects/KGD_ACCOUNT_TRACKING/kgd-app/.env)
+
+Edit [kgd-app/.env](file:///c:/Users/smummare/OneDrive%20-%20Arizona%20State%20University/From%20Lumin%20-%20sort%20them/Documents/projects/KGD_ACCOUNT_TRACKING/kgd-app/.env):
+
+```env
+DATABASE_URL="postgresql://YOUR_USER:YOUR_PASSWORD@localhost:5432/kgd_tracker"
+NEXTAUTH_SECRET="change-this-in-production-use-a-real-random-secret"
+NEXTAUTH_URL="http://localhost:3000"
+```
+
+### 3. Run Database Migrations
+
+```bash
+cd kgd-app
+npx prisma migrate dev --name init
+```
+
+This creates all tables from the schema.
+
+### 4. Seed Initial Data
+
+```bash
+npm run db:seed
+```
+
+This creates:
+- **Admin user**: `admin@kgd.com` / `admin123`
+- **Staff user**: `staff@kgd.com` / `staff123`
+- Sample products and inventory items
+
+### 5. Start the App
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and login.
+
+---
+
+## 🔑 Default Credentials
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | admin@kgd.com | admin123 |
+| Staff | staff@kgd.com | staff123 |
+
+> ⚠️ **Change passwords before going live.**
+
+---
+
+## 📂 Key Files
+
+```
+kgd-app/
+├── src/
+│   ├── app/
+│   │   ├── (app)/        # All protected pages
+│   │   │   ├── dashboard/
+│   │   │   ├── customers/
+│   │   │   ├── invoices/
+│   │   │   ├── payments/
+│   │   │   ├── products/
+│   │   │   ├── inventory/
+│   │   │   └── audit/
+│   │   └── login/
+│   ├── actions/          # Server actions (DB mutations)
+│   ├── components/       # InvoiceForm client component
+│   └── lib/              # prisma, auth, utils, audit
+├── prisma/
+│   ├── schema.prisma     # 11 models
+│   └── seed.ts           # Initial data
+└── prisma.config.ts      # Prisma 7 config (DB URL here)
+```
+
+---
+
+## 💡 Key Business Rules Implemented
+
+- **Variable rates**: Invoice line items always require manual rate confirmation (pre-filled from product default but fully editable)
+- **Partial payments**: Payment allocation shows each open invoice with balance due
+- **Customer ledger**: `/customers/[id]` shows combined invoice + payment timeline with running balances
+- **Soft deletes**: Customers and products use `isActive` flag, never hard-deleted
+- **Admin-only actions**: Cancel invoice, delete contact, deactivate customer, view audit log
+- **Audit trail**: Every create/update is logged with old/new values and the user who made the change
+
+---
+
+## ⏭️ V2 Ideas (Out of Scope for V1)
+
+- GST calculation
+- PDF export
+- Auto inventory deduction on invoice
+- Bulk invoice operations
+- Mobile-friendly layout
+- Email notifications

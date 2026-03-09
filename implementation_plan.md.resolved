@@ -1,0 +1,441 @@
+# KGD Account Tracking — V1 Implementation Plan
+
+> **Paper Plate Manufacturing Business — Digital Notebook + Balance Tracker + Billing App**  
+> Stack: Next.js · TypeScript · Tailwind CSS · Prisma · PostgreSQL
+
+---
+
+## 1. Product Understanding
+
+This is a **real internal business app** for a small paper plate manufacturing business that currently tracks everything in physical notebooks. The three most painful problems are:
+
+1. Forgetting customer balances / outstanding dues
+2. Creating quick bills
+3. Checking sales history and inventory
+
+This is **not a fixed-price business**. Rates vary per customer, per season, per market rate, and by relationship. The system must never assume fixed prices and must always allow manual override.
+
+The business sells two product types:
+- **Plates** — finished paper plates (various sizes, GSM, colors)
+- **Sheets** — raw paper sheets (sold to other manufacturers)
+
+Products vary by: size (10", 14"…), GSM (70, 80, 100, 120, 140…), color (silver, gold, green, multi…), and may be sold in packets or loose.
+
+Customers buy on credit, pay partially, pay late, and pay via UPI/cash/bank transfer. One customer can have multiple contacts and multiple phone numbers.
+
+---
+
+## 2. V1 Scope (Build This)
+
+| Module | What it includes |
+|---|---|
+| **Auth** | Login with email+password, roles: Admin / Staff |
+| **Customers** | Create/edit customer, multiple contacts per customer |
+| **Products** | Product catalog — plates & sheets with size/GSM/color |
+| **Invoices** | Multi-item invoices, manual rate per line, bill-level discount, remarks |
+| **Payments** | Record payments against invoices (partial, multiple, any method) |
+| **Customer Ledger** | Per-customer running balance — all invoices + payments |
+| **Dashboard** | Total outstanding, recent invoices/payments, today/month sales |
+| **Audit Trail** | Created/updated by and timestamps on all key records; change log |
+| **Basic Inventory** | Manual stock entries for raw materials; visible stock totals |
+
+---
+
+## 3. Out of Scope for V1
+
+- GST calculation / GST filing
+- Automatic inventory deduction from production
+- Employee / payroll module
+- Expense tracking
+- Advanced reports / analytics
+- WhatsApp sharing
+- PDF export (structure is print-ready, actual PDF export is V2)
+- Mobile app
+- Complex pricing rules / price lists
+
+---
+
+## 4. Proposed Modules
+
+```
+Auth          → login, session, role guard
+Customers     → list, create, edit, detail, contacts
+Products      → list, create, edit
+Invoices      → list, create, detail, print view
+Payments      → record payment, payment history
+Ledger        → per-customer ledger view
+Dashboard     → summary cards + recent activity
+Inventory     → manual stock entries, stock summary
+Audit Logs    → change history (admin only)
+```
+
+---
+
+## 5. Database Schema (Prisma)
+
+### Users
+
+```prisma
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STAFF)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  invoices     Invoice[]
+  payments     Payment[]
+  auditLogs    AuditLog[]
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+```
+
+---
+
+### Customers & Contacts
+
+```prisma
+model Customer {
+  id              String    @id @default(cuid())
+  name            String
+  businessName    String?
+  address         String?
+  city            String?
+  notes           String?
+  defaultDiscount Decimal?  @db.Decimal(5, 2)  // optional % discount suggestion
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdById     String
+
+  contacts        CustomerContact[]
+  invoices        Invoice[]
+  payments        Payment[]
+}
+
+model CustomerContact {
+  id          String   @id @default(cuid())
+  customerId  String
+  name        String
+  phone       String?
+  role        String?  // e.g. "Owner", "Manager"
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+}
+```
+
+---
+
+### Products
+
+```prisma
+model Product {
+  id           String      @id @default(cuid())
+  name         String      // e.g. "10 inch Silver Plate"
+  type         ProductType
+  sizeInches   Decimal?    @db.Decimal(5, 2)
+  gsm          Int?
+  color        String?
+  unitLabel    String      @default("packet") // "packet" | "piece" | "kg" | "sheet"
+  defaultRate  Decimal?    @db.Decimal(10, 2) // suggested rate, always overridable
+  description  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  invoiceItems InvoiceItem[]
+}
+
+enum ProductType {
+  PLATE
+  SHEET
+}
+```
+
+---
+
+### Invoices & Line Items
+
+```prisma
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique  // e.g. KGD-2024-001
+  customerId      String
+  invoiceDate     DateTime      @default(now())
+  dueDate         DateTime?
+  subtotal        Decimal       @db.Decimal(12, 2)
+  discountAmount  Decimal       @default(0) @db.Decimal(12, 2)
+  totalAmount     Decimal       @db.Decimal(12, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(12, 2)
+  balanceDue      Decimal       @db.Decimal(12, 2)   // computed: totalAmount - paidAmount
+  status          InvoiceStatus @default(UNPAID)
+  remarks         String?
+  createdById     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  createdBy       User          @relation(fields: [createdById], references: [id])
+  items           InvoiceItem[]
+  payments        PaymentAllocation[]
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  productId   String?  // nullable — allows free-text manual line items
+  description String   // always stored for display (auto-filled or manual)
+  quantity    Decimal  @db.Decimal(10, 3)
+  unit        String   @default("packet")
+  rate        Decimal  @db.Decimal(10, 2)   // ALWAYS manually entered / overridable
+  amount      Decimal  @db.Decimal(12, 2)   // quantity × rate
+  remarks     String?
+  sortOrder   Int      @default(0)
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product     Product? @relation(fields: [productId], references: [id])
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  CANCELLED
+}
+```
+
+---
+
+### Payments & Allocations
+
+```prisma
+model Payment {
+  id            String        @id @default(cuid())
+  customerId    String
+  amount        Decimal       @db.Decimal(12, 2)
+  paymentDate   DateTime      @default(now())
+  method        PaymentMethod @default(CASH)
+  reference     String?       // UPI txn ID, cheque number, etc.
+  notes         String?
+  createdById   String
+  createdAt     DateTime      @default(now())
+
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  createdBy     User          @relation(fields: [createdById], references: [id])
+  allocations   PaymentAllocation[]
+}
+
+// Links one payment to one or more invoices
+model PaymentAllocation {
+  id          String  @id @default(cuid())
+  paymentId   String
+  invoiceId   String
+  amount      Decimal @db.Decimal(12, 2)
+
+  payment     Payment @relation(fields: [paymentId], references: [id])
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  OTHER
+}
+```
+
+---
+
+### Inventory
+
+```prisma
+model InventoryItem {
+  id           String   @id @default(cuid())
+  name         String   // e.g. "Brown Paper 700mm 80GSM"
+  category     String   // "RAW_MATERIAL" | "PACKAGING" etc.
+  unit         String   // "kg" | "roll" | "piece"
+  currentStock Decimal  @db.Decimal(12, 3)
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  transactions InventoryTransaction[]
+}
+
+model InventoryTransaction {
+  id              String          @id @default(cuid())
+  inventoryItemId String
+  type            StockMoveType
+  quantity        Decimal         @db.Decimal(12, 3)
+  rate            Decimal?        @db.Decimal(10, 2)
+  totalCost       Decimal?        @db.Decimal(12, 2)
+  transactionDate DateTime        @default(now())
+  notes           String?
+  createdById     String
+  createdAt       DateTime        @default(now())
+
+  item            InventoryItem   @relation(fields: [inventoryItemId], references: [id])
+}
+
+enum StockMoveType {
+  PURCHASE     // stock came in
+  ADJUSTMENT   // manual correction
+  SALE         // stock went out (manual)
+}
+```
+
+---
+
+### Audit Logs
+
+```prisma
+model AuditLog {
+  id          String   @id @default(cuid())
+  entity      String   // "Invoice", "Payment", "Customer", etc.
+  entityId    String
+  action      String   // "CREATE", "UPDATE", "DELETE"
+  oldValues   Json?    // previous state snapshot
+  newValues   Json?    // new state snapshot
+  performedBy String   // userId
+  performedAt DateTime @default(now())
+  ipAddress   String?
+
+  user        User     @relation(fields: [performedBy], references: [id])
+}
+```
+
+---
+
+## 6. Folder Structure
+
+```
+kgd-account-tracking/
+├── app/
+│   ├── (auth)/
+│   │   ├── login/          page.tsx
+│   │   └── layout.tsx
+│   ├── (app)/
+│   │   ├── layout.tsx      (sidebar + header, auth-protected)
+│   │   ├── dashboard/      page.tsx
+│   │   ├── customers/
+│   │   │   ├── page.tsx          (list)
+│   │   │   ├── new/page.tsx
+│   │   │   └── [id]/
+│   │   │       ├── page.tsx      (detail + ledger)
+│   │   │       └── edit/page.tsx
+│   │   ├── products/
+│   │   │   ├── page.tsx
+│   │   │   ├── new/page.tsx
+│   │   │   └── [id]/edit/page.tsx
+│   │   ├── invoices/
+│   │   │   ├── page.tsx
+│   │   │   ├── new/page.tsx
+│   │   │   └── [id]/
+│   │   │       ├── page.tsx      (detail)
+│   │   │       └── print/page.tsx
+│   │   ├── payments/
+│   │   │   ├── page.tsx
+│   │   │   └── new/page.tsx
+│   │   ├── inventory/
+│   │   │   ├── page.tsx
+│   │   │   └── [id]/page.tsx
+│   │   └── audit/
+│   │       └── page.tsx          (admin only)
+├── components/
+│   ├── ui/                 (Button, Input, Select, Card, Badge, Table...)
+│   ├── layout/             (Sidebar, Header, PageHeader)
+│   ├── customers/          (CustomerCard, LedgerTable...)
+│   ├── invoices/           (InvoiceForm, InvoiceItemRow, InvoicePrint)
+│   └── payments/           (PaymentForm, PaymentBadge)
+├── lib/
+│   ├── prisma.ts           (Prisma client singleton)
+│   ├── auth.ts             (session helpers)
+│   ├── audit.ts            (audit logging helper)
+│   └── utils.ts            (formatCurrency, formatDate, etc.)
+├── actions/
+│   ├── customers.ts        (server actions)
+│   ├── invoices.ts
+│   ├── payments.ts
+│   ├── products.ts
+│   └── inventory.ts
+├── prisma/
+│   └── schema.prisma
+├── public/
+└── middleware.ts            (auth route protection)
+```
+
+---
+
+## 7. Implementation Order
+
+| Phase | What | Why |
+|---|---|---|
+| 1 | Project setup + Prisma schema + DB | Foundation first |
+| 2 | Auth (login, session, middleware) | Everything gates on this |
+| 3 | Customers + Contacts | Core entity |
+| 4 | Products | Needed for invoices |
+| 5 | Invoices (create, list, detail) | Core billing — the most important flow |
+| 6 | Payments (record, list) | Complete the money loop |
+| 7 | Customer Ledger | Shows running balance |
+| 8 | Dashboard | Brings it all together |
+| 9 | Audit Trail | Add last, touches all entities |
+| 10 | Basic Inventory | Lower priority but included in V1 |
+| 11 | Invoice Print View | Polish for demo |
+| 12 | Final testing + walkthrough | Verify end-to-end |
+
+---
+
+## 8. Risks & Edge Cases
+
+| Risk | Mitigation |
+|---|---|
+| Balance drift — paidAmount on invoice out of sync | Recompute from PaymentAllocations on every payment write |
+| Rate changes over time | Rate is stored on InvoiceItem at time of creation, never read from product again |
+| Partial payment allocation | Payment can allocate across multiple invoices; track via PaymentAllocation |
+| Invoice number collisions | Auto-generate sequential, store uniquely in DB |
+| Staff deleting records | Role guard on all delete actions; soft-delete preferred |
+| Print layout varies | Start with basic HTML print CSS; proper PDF export in V2 |
+| Phone number format | Store as plain string — no validation enforcement, keep flexible |
+
+---
+
+## 9. Clarifying Assumptions Made
+
+1. **GST is not in V1** — fields are present in schema structure but no GST calculation engine
+2. **Invoice number format**: `KGD-YYYY-NNNN` (e.g., KGD-2024-0001) — auto-generated
+3. **Password auth**: Simple bcrypt email+password login via NextAuth credentials provider (no magic links)
+4. **Balance = totalAmount − sum of all PaymentAllocations** — computed in app, stored as a denormalized snapshot on Invoice for fast display
+5. **Loose vs packet**: Handled via `unit` field on InvoiceItem (can be "packet", "piece", "kg", "sheet")
+6. **Customer-specific pricing**: NOT stored as a price list — just override at billing time with manual entry (per business requirement)
+7. **Inventory does not auto-deduct** on invoice creation in V1
+8. **Soft deletes**: `isActive` flag used on Customer and Product — never hard delete
+9. **Tailwind CSS** via the Next.js default setup (not custom Tailwind config from scratch)
+10. **Single currency**: Indian Rupees (₹) — no multi-currency support
+
+---
+
+## 10. Tech Stack Confirmation
+
+| Layer | Choice | Reason |
+|---|---|---|
+| Framework | Next.js 14 App Router | Requested; great for forms + server actions |
+| Language | TypeScript | Type safety, better maintainability |
+| Styling | Tailwind CSS | Fast, clean, non-technical-user friendly |
+| ORM | Prisma | Requested; excellent DX + type safety |
+| Database | PostgreSQL | Requested; reliable for financial data |
+| Auth | NextAuth.js (credentials) | Simple role-based login |
+| UI components | shadcn/ui | Clean, accessible, production-ready |
+
+> [!IMPORTANT]
+> **Ready to begin implementation** once you approve this plan. I will start Phase 1 (project setup + Prisma schema) immediately on approval.
