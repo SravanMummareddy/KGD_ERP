@@ -87,56 +87,49 @@ export default function ColumnFilter({ column, label, options, paramKey }: Props
             </button>
 
             {open && (
-                <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 4px)',
-                    left: 0,
-                    zIndex: 9999,
-                    background: '#ffffff',
-                    border: '1.5px solid #e2e8f0',
-                    borderRadius: '0.5rem',
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
-                    minWidth: 195,
-                    maxHeight: 280,
-                    overflowY: 'auto',
-                    padding: '0.4rem 0',
-                }}>
-                    <div style={{ padding: '0.25rem 0.75rem 0.5rem', borderBottom: '1px solid var(--color-border)', marginBottom: '0.25rem' }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div 
+                    className="absolute z-[9999] top-full mt-2 left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden text-left font-normal text-gray-800"
+                    style={{ maxHeight: '320px', overflowY: 'auto' }}
+                >
+                    <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/50">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                             Filter: {label}
                         </span>
                     </div>
-                    {options.map((opt) => {
-                        const checked = currentValues.includes(opt.value)
-                        return (
-                            <label key={opt.value} style={{
-                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                padding: '0.4rem 0.75rem', cursor: 'pointer',
-                                background: checked ? 'var(--color-primary-light, #eff6ff)' : 'transparent',
-                                fontSize: '0.85rem',
-                            }}>
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => toggleValue(opt.value)}
-                                />
-                                {opt.label}
-                            </label>
-                        )
-                    })}
+                    <div className="py-1">
+                        {options.map((opt) => {
+                            const checked = currentValues.includes(opt.value)
+                            return (
+                                <label 
+                                    key={opt.value} 
+                                    className={`flex items-start gap-2.5 px-3 py-2 cursor-pointer text-sm transition-colors ${
+                                        checked ? 'bg-blue-50/80 hover:bg-blue-50' : 'hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => toggleValue(opt.value)}
+                                        className="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                    />
+                                    <span className={`block flex-1 ${checked ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                                        {opt.label}
+                                    </span>
+                                </label>
+                            )
+                        })}
+                    </div>
                     {hasFilter && (
-                        <button
-                            type="button"
-                            onClick={clearFilter}
-                            style={{
-                                display: 'block', width: '100%', padding: '0.4rem 0.75rem',
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: 'var(--color-danger)', fontSize: '0.8rem', textAlign: 'left',
-                                borderTop: '1px solid var(--color-border)', marginTop: '0.25rem',
-                            }}
-                        >
-                            ✕ Clear filter
-                        </button>
+                        <div className="border-t border-gray-100 p-1">
+                            <button
+                                type="button"
+                                onClick={clearFilter}
+                                className="w-full text-left px-2 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-colors flex items-center gap-1.5"
+                            >
+                                <span>✕</span>
+                                Clear filter
+                            </button>
+                        </div>
                     )}
                 </div>
             )}
