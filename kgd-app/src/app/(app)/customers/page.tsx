@@ -18,6 +18,9 @@ export default async function CustomersPage() {
             city: true,
             phone: true,
             secondaryPhone: true,
+            contacts: {
+                select: { phone: true }
+            },
             _count: { select: { invoices: true } },
         },
         orderBy: { name: 'asc' },
@@ -71,9 +74,11 @@ export default async function CustomersPage() {
                                         {c.city && <div className="text-muted" style={{ fontSize: '0.75rem' }}>📍 {c.city}</div>}
                                     </td>
                                     <td>
-                                        {c.phone ? (
+                                        {c.phone || c.contacts[0]?.phone ? (
                                             <div>
-                                                <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{c.phone}</div>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                                    {c.phone || c.contacts[0]?.phone}
+                                                </div>
                                                 {c.secondaryPhone && (
                                                     <div className="text-muted" style={{ fontSize: '0.78rem' }}>{c.secondaryPhone}</div>
                                                 )}
