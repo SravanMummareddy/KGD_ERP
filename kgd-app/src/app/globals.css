@@ -508,3 +508,74 @@ tr:hover td { background: #f8fafc; }
     width: 100%;
   }
 }
+
+/* ─── Desktop Collapsed Sidebar ──────────────────────────────── */
+@media (min-width: 769px) {
+  .sidebar {
+    transition: width 0.3s ease-in-out;
+    width: 240px;
+    overflow-x: hidden;
+  }
+  
+  .sidebar.collapsed {
+    width: 72px; /* Just wide enough for icons */
+  }
+
+  .main-content {
+    transition: margin-left 0.3s ease-in-out;
+    margin-left: 240px;
+  }
+
+  .sidebar.collapsed ~ .main-content {
+    margin-left: 72px;
+  }
+  
+  .sidebar.collapsed .sidebar-logo {
+     padding: 1.5rem 0.5rem;
+     justify-content: center;
+  }
+  
+  .sidebar.collapsed .sidebar-nav {
+     padding: 1rem 0.5rem;
+  }
+  
+  .sidebar.collapsed .nav-link {
+     padding: 0.75rem;
+     justify-content: center;
+  }
+  
+  .sidebar.collapsed .nav-link span {
+     margin-right: 0;
+     font-size: 1.25rem;
+  }
+
+  .sidebar.collapsed .sidebar-footer {
+     padding: 1rem 0.5rem;
+  }
+}
+
+/* ─── Explicit Scrollbars for Tables ──────────────────────────── */
+.table-container {
+  overflow-x: auto;
+  /* Add smooth touch scrolling for mobile */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Scrollbar for the table container to make it obvious */
+.table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

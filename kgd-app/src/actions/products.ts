@@ -95,3 +95,36 @@ export async function updateProduct(productId: string, formData: FormData): Prom
     revalidatePath('/products')
     redirect('/products')
 }
+
+export async function adjustStock(
+    productId: string,
+    packetsToAdd: number,
+    looseToAdd: number,
+    reason: string
+): Promise<void> {
+    const session = await auth()
+    if (!session?.user) throw new Error('Unauthorized')
+
+    const piecesToAdd = (packetsToAdd * 14) + looseToAdd
+
+    const oldProduct = await prisma.product.findUnique({ where: { id: productId } })
+    if (!oldProduct) throw new Error('Product not found')
+
+    const newProduct = await prisma.product.update({
+        where: { id: productId },
+        data: {
+            stockPieces: { increment: piecesToAdd }
+        }
+    })
+
+    await writeAuditLog({
+        entity: 'Product',
+        entityId: productId,
+        action: 'UPDATE',
+        performedBy: session.user.id,
+        oldValues: { stockPieces: oldProduct.stockPieces },
+        newValues: { stockPieces: newProduct.stockPieces, piecesAdded: piecesToAdd, reason }
+    })
+
+    revalidatePath('/products')
+}

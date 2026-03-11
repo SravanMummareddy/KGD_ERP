@@ -15,6 +15,11 @@ export default async function InventoryPage() {
         orderBy: [{ category: 'asc' }, { name: 'asc' }],
     })
 
+    const products = await prisma.product.findMany({
+        where: { isActive: true },
+        orderBy: [{ type: 'asc' }, { name: 'asc' }],
+    })
+
     // Group by category
     type ItemRow = typeof items[number]
     const grouped: Record<string, typeof items> = {}
@@ -34,12 +39,50 @@ export default async function InventoryPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem', alignItems: 'start' }}>
-                {/* Stock table */}
+                {/* Stock tables */}
                 <div>
+                    {/* Finished Goods Table */}
+                    <div style={{ marginBottom: '2rem' }}>
+                        <h2 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Finished Goods (Plates & Sheets)
+                        </h2>
+                        <div className="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Size</th>
+                                        <th>GSM</th>
+                                        <th style={{ textAlign: 'right' }}>Current Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {products.map((p: typeof products[number]) => (
+                                        <tr key={p.id}>
+                                            <td style={{ fontWeight: 500 }}>{p.name}</td>
+                                            <td className="text-muted">{p.sizeInches ? `${p.sizeInches}"` : '—'}</td>
+                                            <td className="text-muted">{p.gsm ?? '—'}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                                {Math.floor(p.stockPieces / 14)} Packets
+                                                {p.stockPieces % 14 > 0 && <div className="text-muted text-sm">+{p.stockPieces % 14} Loose</div>}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {products.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} className="text-muted" style={{ textAlign: 'center', padding: '1rem' }}>No finished products found.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Raw Material Tables grouped by category */}
                     {Object.entries(grouped).map(([category, categoryItems]) => (
                         <div key={category} style={{ marginBottom: '1.5rem' }}>
                             <h2 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                {category}
+                                Raw Material • {category}
                             </h2>
                             <div className="table-container">
                                 <table>

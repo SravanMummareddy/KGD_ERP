@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
+import AdjustStockModal from '@/components/invoices/AdjustStockModal'
 
 export default async function ProductsPage() {
     const session = await auth()
@@ -29,6 +30,7 @@ export default async function ProductsPage() {
                                 <th>GSM</th>
                                 <th>Color</th>
                                 <th>Unit</th>
+                                <th>Current Stock</th>
                                 <th style={{ textAlign: 'right' }}>Default Rate</th>
                                 <th>Actions</th>
                             </tr>
@@ -48,11 +50,18 @@ export default async function ProductsPage() {
                                     <td className="text-muted">{p.gsm ?? '—'}</td>
                                     <td className="text-muted">{p.color || '—'}</td>
                                     <td className="text-muted">{p.unitLabel}</td>
+                                    <td>
+                                        <div style={{ fontWeight: 600 }}>{Math.floor(p.stockPieces / 14)} Packets</div>
+                                        {p.stockPieces % 14 > 0 && <div className="text-muted text-sm">+{p.stockPieces % 14} Loose</div>}
+                                    </td>
                                     <td style={{ textAlign: 'right' }} className="text-money">
                                         {p.defaultRate ? formatCurrency(p.defaultRate) : <span className="text-muted">—</span>}
                                     </td>
                                     <td>
-                                        <Link href={`/products/${p.id}/edit`} className="btn btn-secondary btn-sm">Edit</Link>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <AdjustStockModal productId={p.id} productName={p.name} currentStock={p.stockPieces} />
+                                            <Link href={`/products/${p.id}/edit`} className="btn btn-secondary btn-sm">Edit</Link>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

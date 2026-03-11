@@ -130,6 +130,7 @@ model Product {
   // Suggested rate — always manually overridable at invoice line level
   defaultRate Decimal?    @db.Decimal(10, 2)
   description String?
+  stockPieces Int         @default(0) // Tracks the raw number of finished pieces (e.g., plates)
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

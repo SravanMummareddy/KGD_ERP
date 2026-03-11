@@ -17,7 +17,8 @@ const navItems = [
 
 export default function Sidebar({ userName, userRole }: { userName: string; userRole: string }) {
     const pathname = usePathname()
-    const [isOpen, setIsOpen] = useState(false)
+    const [isOpen, setIsOpen] = useState(false) // Mobile drawer
+    const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false) // Desktop collapse
 
     // Close sidebar on route change automatically on mobile
     useEffect(() => {
@@ -51,13 +52,23 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
                 <div className="sidebar-overlay" onClick={() => setIsOpen(false)} />
             )}
 
-            <nav className={`sidebar ${isOpen ? 'open' : ''}`}>
-                {/* Desktop Brand (hidden via CSS if desired, but fine to keep) */}
+            <nav className={`sidebar ${isOpen ? 'open' : ''} ${isDesktopCollapsed ? 'collapsed' : ''}`}>
                 <div className="sidebar-logo">
-                    <span>⚙</span> KGD <span>Accounts</span>
+                    {/* Desktop Hamburger Toggle */}
+                    <button 
+                        onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
+                        style={{ background: 'none', border: 'none', color: '#f1f5f9', fontSize: '1.25rem', cursor: 'pointer', marginRight: '0.5rem' }}
+                        className="desktop-toggle"
+                        aria-label="Toggle Sidebar"
+                    >
+                        ☰
+                    </button>
+                    {!isDesktopCollapsed && (
+                        <><span>⚙</span> KGD <span>Accounts</span></>
+                    )}
                     {/* Close button inside sidebar on mobile */}
                     <button 
-                        className="md:hidden" 
+                        className="mobile-close" 
                         onClick={() => setIsOpen(false)}
                         style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
                     >
@@ -67,7 +78,7 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
 
                 {/* Nav links */}
                 <div className="sidebar-nav">
-                    <div className="nav-section-label">Main Menu</div>
+                    {!isDesktopCollapsed && <div className="nav-section-label">Main Menu</div>}
                     {navItems.map((item) => {
                         // Hide Audit Log for non-admins
                         if (item.href === '/audit' && userRole !== 'ADMIN') return null
@@ -77,9 +88,10 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
                                 key={item.href}
                                 href={item.href}
                                 className={`nav-link${isActive ? ' active' : ''}`}
+                                title={isDesktopCollapsed ? item.label : undefined} // Tooltip on hover if collapsed
                             >
                                 <span>{item.icon}</span>
-                                {item.label}
+                                {!isDesktopCollapsed && item.label}
                             </Link>
                         )
                     })}
@@ -87,26 +99,32 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
 
                 {/* Footer */}
                 <div className="sidebar-footer">
-                    <div style={{ marginBottom: '0.5rem' }}>
-                        <div style={{ fontWeight: 600, color: '#94a3b8', fontSize: '0.8rem' }}>{userName}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#475569', textTransform: 'capitalize' }}>
-                            {userRole.toLowerCase()}
+                    {!isDesktopCollapsed && (
+                        <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontWeight: 600, color: '#94a3b8', fontSize: '0.8rem' }}>{userName}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#475569', textTransform: 'capitalize' }}>
+                                {userRole.toLowerCase()}
+                            </div>
                         </div>
-                    </div>
+                    )}
                     <button
                         onClick={() => signOut({ callbackUrl: '/login' })}
+                        title={isDesktopCollapsed ? "Sign Out" : undefined}
                         style={{
                             background: 'none',
                             border: '1px solid #334155',
-                            color: '#64748b',
+                            color: '#e2e8f0', // Brighter icon color
                             cursor: 'pointer',
                             borderRadius: '0.375rem',
-                            padding: '0.35rem 0.75rem',
-                            fontSize: '0.78rem',
+                            padding: isDesktopCollapsed ? '0.5rem' : '0.35rem 0.75rem',
+                            fontSize: isDesktopCollapsed ? '1.2rem' : '0.78rem',
                             width: '100%',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center'
                         }}
                     >
-                        Sign Out
+                        {isDesktopCollapsed ? '🚪' : 'Sign Out'}
                     </button>
                 </div>
             </nav>
