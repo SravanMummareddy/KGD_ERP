@@ -10,8 +10,10 @@ import { z } from 'zod'
 // ─── Validation Schemas ───────────────────────────────────────────
 
 const CustomerSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().min(1, 'Contact person name is required'),
     businessName: z.string().optional(),
+    phone: z.string().optional(),
+    secondaryPhone: z.string().optional(),
     address: z.string().optional(),
     city: z.string().optional(),
     notes: z.string().optional(),
@@ -35,6 +37,8 @@ export async function createCustomer(formData: FormData): Promise<void> {
     const parsed = CustomerSchema.safeParse({
         name: formData.get('name'),
         businessName: formData.get('businessName'),
+        phone: formData.get('phone'),
+        secondaryPhone: formData.get('secondaryPhone'),
         address: formData.get('address'),
         city: formData.get('city'),
         notes: formData.get('notes'),
@@ -47,6 +51,8 @@ export async function createCustomer(formData: FormData): Promise<void> {
         data: {
             name: parsed.data.name,
             businessName: parsed.data.businessName || null,
+            phone: parsed.data.phone || null,
+            secondaryPhone: parsed.data.secondaryPhone || null,
             address: parsed.data.address || null,
             city: parsed.data.city || null,
             notes: parsed.data.notes || null,
@@ -57,10 +63,12 @@ export async function createCustomer(formData: FormData): Promise<void> {
     await writeAuditLog({
         entity: 'Customer', entityId: customer.id, action: 'CREATE',
         performedBy: session.user.id,
-        newValues: { name: customer.name, city: customer.city },
+        newValues: { name: customer.name, businessName: customer.businessName, city: customer.city },
     })
 
     revalidatePath('/customers')
+    revalidatePath('/invoices')
+    revalidatePath('/dashboard')
     redirect(`/customers/${customer.id}`)
 }
 
@@ -73,6 +81,8 @@ export async function updateCustomer(customerId: string, formData: FormData): Pr
     const parsed = CustomerSchema.safeParse({
         name: formData.get('name'),
         businessName: formData.get('businessName'),
+        phone: formData.get('phone'),
+        secondaryPhone: formData.get('secondaryPhone'),
         address: formData.get('address'),
         city: formData.get('city'),
         notes: formData.get('notes'),
@@ -88,6 +98,8 @@ export async function updateCustomer(customerId: string, formData: FormData): Pr
         data: {
             name: parsed.data.name,
             businessName: parsed.data.businessName || null,
+            phone: parsed.data.phone || null,
+            secondaryPhone: parsed.data.secondaryPhone || null,
             address: parsed.data.address || null,
             city: parsed.data.city || null,
             notes: parsed.data.notes || null,
@@ -98,12 +110,16 @@ export async function updateCustomer(customerId: string, formData: FormData): Pr
     await writeAuditLog({
         entity: 'Customer', entityId: customer.id, action: 'UPDATE',
         performedBy: session.user.id,
-        oldValues: { name: old?.name, city: old?.city },
-        newValues: { name: customer.name, city: customer.city },
+        oldValues: { name: old?.name, businessName: old?.businessName, city: old?.city, phone: old?.phone },
+        newValues: { name: customer.name, businessName: customer.businessName, city: customer.city, phone: customer.phone },
     })
 
+    // Revalidate all pages that may display customer data
     revalidatePath(`/customers/${customerId}`)
     revalidatePath('/customers')
+    revalidatePath('/invoices')
+    revalidatePath('/payments')
+    revalidatePath('/dashboard')
     redirect(`/customers/${customerId}`)
 }
 
@@ -172,5 +188,6 @@ export async function deactivateCustomer(customerId: string): Promise<void> {
     })
 
     revalidatePath('/customers')
+    revalidatePath('/dashboard')
     redirect('/customers')
 }

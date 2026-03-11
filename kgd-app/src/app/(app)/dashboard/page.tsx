@@ -61,13 +61,13 @@ export default async function DashboardPage() {
     type InvRow = typeof recentInvoices[number]
     type PayRow = typeof recentPayments[number]
 
-    const outstanding = await getCustomerOutstandingSummaries(activeCustomers.map((c) => c.id))
+    const outstanding = await getCustomerOutstandingSummaries(activeCustomers.map((c: { id: string }) => c.id))
     const totalOutstanding = outstanding.reduce((sum, o) => sum + o.netOutstanding, 0)
     const topDebtors = outstanding
         .filter((o) => o.netOutstanding > 0)
         .sort((a, b) => b.netOutstanding - a.netOutstanding)
         .slice(0, 8)
-    const nameMap = new Map(activeCustomers.map((c) => [c.id, c.name]))
+    const nameMap = new Map(activeCustomers.map((c: { id: string; name: string }) => [c.id, c.name]))
 
     return (
         <>

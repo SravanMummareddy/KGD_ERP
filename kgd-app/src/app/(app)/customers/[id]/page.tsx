@@ -77,8 +77,9 @@ export default async function CustomerDetailPage({
             {/* Header */}
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">{customer.name}</h1>
-                    {customer.businessName && <p className="text-muted">{customer.businessName}</p>}
+                    <h1 className="page-title">{customer.businessName || customer.name}</h1>
+                    {customer.businessName && <p className="text-muted">Contact: {customer.name}</p>}
+                    {customer.phone && <p className="text-muted">📞 {customer.phone}{customer.secondaryPhone ? ` / ${customer.secondaryPhone}` : ''}</p>}
                     {customer.city && <p className="text-muted">📍 {customer.city}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -95,7 +96,7 @@ export default async function CustomerDetailPage({
             </div>
 
             {/* Balance Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Number(customer.creditBalance) > 0 ? 4 : 3}, 1fr)`, gap: '1rem', marginBottom: '1.5rem' }}>
                 <div className="stat-card">
                     <div className="stat-label">Total Billed</div>
                     <div className="stat-value">{formatCurrency(totalBilled)}</div>
@@ -110,6 +111,14 @@ export default async function CustomerDetailPage({
                         {formatCurrency(netOutstanding)}
                     </div>
                 </div>
+                {Number(customer.creditBalance) > 0 && (
+                    <div className="stat-card" style={{ border: '2px solid #16a34a' }}>
+                        <div className="stat-label">Advance Credit</div>
+                        <div className="stat-value" style={{ color: 'var(--color-success)' }}>
+                            {formatCurrency(customer.creditBalance)}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>

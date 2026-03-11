@@ -32,14 +32,14 @@ export async function getCustomerOutstandingSummaries(customerIds?: string[]): P
     ])
 
     const invoiceOutstandingMap = new Map<string, number>(
-        balances.map((b) => [b.customerId, Number(b._sum.balanceDue ?? 0)])
+        balances.map((b: { customerId: string; _sum: { balanceDue: unknown } }) => [b.customerId, Number(b._sum.balanceDue ?? 0)])
     )
     const totalPaidMap = new Map<string, number>()
     const totalAllocatedMap = new Map<string, number>()
 
     for (const p of payments) {
         totalPaidMap.set(p.customerId, (totalPaidMap.get(p.customerId) ?? 0) + Number(p.amount))
-        const allocated = p.allocations.reduce((sum, a) => sum + Number(a.amount), 0)
+        const allocated = p.allocations.reduce((sum: number, a: { amount: unknown }) => sum + Number(a.amount), 0)
         totalAllocatedMap.set(p.customerId, (totalAllocatedMap.get(p.customerId) ?? 0) + allocated)
     }
 

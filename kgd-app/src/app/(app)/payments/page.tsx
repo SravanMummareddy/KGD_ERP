@@ -3,16 +3,39 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, paymentMethodLabel } from '@/lib/utils'
+import DateRangeFilter from '@/components/layout/DateRangeFilter'
+import { Suspense } from 'react'
 
-export default async function PaymentsPage() {
+function getDateRange(range: string|null, from: string|null, to: string|null) {
+    const now = new Date()
+    if (range === 'custom' && from && to) {
+        return { gte: new Date(from), lte: new Date(to + 'T23:59:59') }
+    }
+    const days = parseInt(range ?? '0')
+    if (!days) return undefined
+    const start = new Date(now)
+    start.setDate(start.getDate() - days + 1)
+    start.setHours(0, 0, 0, 0)
+    return { gte: start }
+}
+
+export default async function PaymentsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ range?: string; from?: string; to?: string }>
+}) {
     const session = await auth()
     if (!session?.user) redirect('/login')
+
+    const sp = await searchParams
+    const dateFilter = getDateRange(sp.range ?? null, sp.from ?? null, sp.to ?? null)
 
     type PaymentRow = Awaited<ReturnType<typeof prisma.payment.findMany>>[number]
     const payments = await prisma.payment.findMany({
         include: { customer: true, allocations: { include: { invoice: true } } },
+        where: dateFilter ? { paymentDate: dateFilter } : {},
         orderBy: { paymentDate: 'desc' },
-        take: 100,
+        take: 200,
     })
 
     return (
@@ -20,10 +43,14 @@ export default async function PaymentsPage() {
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Payments</h1>
-                    <p className="text-muted">{payments.length} recent payments</p>
+                    <p className="text-muted">{payments.length} payments shown</p>
                 </div>
                 <Link href="/payments/new" className="btn btn-primary">+ Record Payment</Link>
             </div>
+
+            <Suspense>
+                <DateRangeFilter />
+            </Suspense>
 
             <div className="table-container">
                 <table>
@@ -35,13 +62,14 @@ export default async function PaymentsPage() {
                             <th>Reference</th>
                             <th>Applied To</th>
                             <th style={{ textAlign: 'right' }}>Amount</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {payments.length === 0 && (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
-                                    No payments yet.
+                                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                    No payments in this period.
                                 </td>
                             </tr>
                         )}
@@ -50,7 +78,7 @@ export default async function PaymentsPage() {
                                 <td className="text-muted">{formatDate(pay.paymentDate)}</td>
                                 <td>
                                     <Link href={`/customers/${pay.customerId}`} style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500 }}>
-                                        {pay.customer.name}
+                                        {pay.customer.businessName || pay.customer.name}
                                     </Link>
                                 </td>
                                 <td>
@@ -59,7 +87,7 @@ export default async function PaymentsPage() {
                                 <td className="text-muted">{pay.reference || '—'}</td>
                                 <td style={{ fontSize: '0.8rem' }}>
                                     {pay.allocations.length === 0
-                                        ? <span className="text-muted">Unallocated</span>
+                                        ? <span className="text-muted">Advance / Credit</span>
                                         : pay.allocations.map((a: PaymentRow['allocations'][number]) => (
                                             <div key={a.id}>
                                                 <Link href={`/invoices/${a.invoiceId}`} style={{ color: 'var(--color-primary)', fontSize: '0.8rem' }}>
@@ -72,6 +100,9 @@ export default async function PaymentsPage() {
                                 </td>
                                 <td style={{ textAlign: 'right', color: 'var(--color-success)', fontWeight: 700 }} className="text-money">
                                     {formatCurrency(pay.amount)}
+                                </td>
+                                <td>
+                                    <Link href={`/payments/${pay.id}/edit`} className="btn btn-secondary btn-sm">Edit</Link>
                                 </td>
                             </tr>
                         ))}

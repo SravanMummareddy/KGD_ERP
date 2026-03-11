@@ -16,22 +16,45 @@ export default function NewCustomerPage() {
                 <form action={createCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div className="form-grid-2">
                         <div className="form-group">
-                            <label className="form-label" htmlFor="name">Customer Name *</label>
+                            <label className="form-label" htmlFor="businessName">Business Name</label>
+                            <input
+                                id="businessName"
+                                name="businessName"
+                                type="text"
+                                className="form-input"
+                                placeholder="e.g. Sharma Traders"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="name">Contact Person *</label>
                             <input
                                 id="name"
                                 name="name"
                                 type="text"
                                 className="form-input"
-                                placeholder="e.g. Sai Catering"
+                                placeholder="e.g. Ramesh Sharma"
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div className="form-grid-2">
                         <div className="form-group">
-                            <label className="form-label" htmlFor="businessName">Business / Shop Name</label>
+                            <label className="form-label" htmlFor="phone">Phone Number</label>
                             <input
-                                id="businessName"
-                                name="businessName"
-                                type="text"
+                                id="phone"
+                                name="phone"
+                                type="tel"
+                                className="form-input"
+                                placeholder="e.g. 9876543210"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="secondaryPhone">Secondary Phone</label>
+                            <input
+                                id="secondaryPhone"
+                                name="secondaryPhone"
+                                type="tel"
                                 className="form-input"
                                 placeholder="Optional"
                             />
@@ -89,7 +112,7 @@ export default function NewCustomerPage() {
                     <hr className="divider" />
 
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                        <Link href="/customers" className="btn btn-secondary">Cancel</Link>
+                        <Link href="/customers" className="btn btn-secondary">← Back</Link>
                         <button type="submit" className="btn btn-primary">Save Customer →</button>
                     </div>
                 </form>

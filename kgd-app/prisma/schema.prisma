@@ -74,11 +74,16 @@ model User {
 
 model Customer {
   id              String    @id @default(cuid())
+  // name = Contact Person (kept for backward compat)
   name            String
   businessName    String?
+  phone           String?   // primary phone number
+  secondaryPhone  String?   // secondary / alternate phone
   address         String?
   city            String?
   notes           String?
+  // Advance credit balance — accumulated from unallocated payments
+  creditBalance   Decimal   @default(0) @db.Decimal(12, 2)
   // Soft hint for discounts — always overridable at billing time
   defaultDiscount Decimal?  @db.Decimal(5, 2)
   isActive        Boolean   @default(true)

@@ -13,8 +13,8 @@ export default async function ProductsPage() {
         orderBy: [{ type: 'asc' }, { name: 'asc' }],
     })
 
-    const plates = products.filter((p) => p.type === 'PLATE')
-    const sheets = products.filter((p) => p.type === 'SHEET')
+    const plates = products.filter((p: typeof products[number]) => p.type === 'PLATE')
+    const sheets = products.filter((p: typeof products[number]) => p.type === 'SHEET')
 
     function ProductTable({ items, title }: { items: typeof products; title: string }) {
         return (
@@ -41,7 +41,7 @@ export default async function ProductsPage() {
                                     </td>
                                 </tr>
                             )}
-                            {items.map((p) => (
+                            {items.map((p: typeof products[number]) => (
                                 <tr key={p.id}>
                                     <td style={{ fontWeight: 500 }}>{p.name}</td>
                                     <td className="text-muted">{p.sizeInches ? `${p.sizeInches}"` : '—'}</td>

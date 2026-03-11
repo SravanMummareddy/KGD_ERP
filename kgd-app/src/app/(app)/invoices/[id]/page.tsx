@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, formatDateTime, invoiceStatusInfo, paymentMethodLabel } from '@/lib/utils'
-import { cancelInvoice } from '@/actions/invoices'
+import CancelInvoiceButton from '@/components/invoices/CancelInvoiceButton'
 
 export default async function InvoiceDetailPage({
     params,
@@ -49,9 +49,10 @@ export default async function InvoiceDetailPage({
                         {invoice.customer.city && ` · ${invoice.customer.city}`}
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Link href="/invoices" className="btn btn-secondary btn-sm">← Invoices</Link>
                     <span className={`badge ${info.color}`} style={{ padding: '0.35rem 0.9rem', fontSize: '0.85rem' }}>{info.label}</span>
-                    <Link href={`/invoices/${invoice.id}/print`} target="_blank" className="btn btn-secondary">
+                    <Link href={`/print/invoices/${invoice.id}`} target="_blank" className="btn btn-secondary">
                         🖨 Print
                     </Link>
                     {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
@@ -60,11 +61,7 @@ export default async function InvoiceDetailPage({
                         </Link>
                     )}
                     {session.user.role === 'ADMIN' && invoice.status !== 'CANCELLED' && (
-                        <form action={cancelInvoice.bind(null, invoice.id)}>
-                            <button type="submit" className="btn btn-danger btn-sm">
-                                Cancel
-                            </button>
-                        </form>
+                        <CancelInvoiceButton invoiceId={invoice.id} />
                     )}
                 </div>
             </div>

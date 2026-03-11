@@ -25,19 +25,35 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
                 <form action={updateWithId} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div className="form-grid-2">
                         <div className="form-group">
-                            <label className="form-label" htmlFor="name">Customer Name *</label>
-                            <input id="name" name="name" type="text" className="form-input" defaultValue={customer.name} required />
+                            <label className="form-label" htmlFor="businessName">Business Name</label>
+                            <input id="businessName" name="businessName" type="text" className="form-input"
+                                placeholder="e.g. Sharma Traders" defaultValue={customer.businessName ?? ''} />
                         </div>
                         <div className="form-group">
-                            <label className="form-label" htmlFor="businessName">Business / Shop Name</label>
-                            <input id="businessName" name="businessName" type="text" className="form-input" defaultValue={customer.businessName ?? ''} />
+                            <label className="form-label" htmlFor="name">Contact Person *</label>
+                            <input id="name" name="name" type="text" className="form-input"
+                                placeholder="e.g. Ramesh Sharma" defaultValue={customer.name} required />
+                        </div>
+                    </div>
+
+                    <div className="form-grid-2">
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="phone">Phone Number</label>
+                            <input id="phone" name="phone" type="tel" className="form-input"
+                                placeholder="e.g. 9876543210" defaultValue={customer.phone ?? ''} />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="secondaryPhone">Secondary Phone</label>
+                            <input id="secondaryPhone" name="secondaryPhone" type="tel" className="form-input"
+                                placeholder="Optional" defaultValue={customer.secondaryPhone ?? ''} />
                         </div>
                     </div>
 
                     <div className="form-grid-2">
                         <div className="form-group">
                             <label className="form-label" htmlFor="city">City</label>
-                            <input id="city" name="city" type="text" className="form-input" defaultValue={customer.city ?? ''} />
+                            <input id="city" name="city" type="text" className="form-input"
+                                defaultValue={customer.city ?? ''} />
                         </div>
                         <div className="form-group">
                             <label className="form-label" htmlFor="defaultDiscount">Default Discount %</label>
@@ -48,7 +64,8 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
 
                     <div className="form-group">
                         <label className="form-label" htmlFor="address">Address</label>
-                        <input id="address" name="address" type="text" className="form-input" defaultValue={customer.address ?? ''} />
+                        <input id="address" name="address" type="text" className="form-input"
+                            defaultValue={customer.address ?? ''} />
                     </div>
 
                     <div className="form-group">
@@ -58,7 +75,7 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
 
                     <hr className="divider" />
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                        <Link href={`/customers/${customer.id}`} className="btn btn-secondary">Cancel</Link>
+                        <Link href={`/customers/${customer.id}`} className="btn btn-secondary">Discard</Link>
                         <button type="submit" className="btn btn-primary">Save Changes →</button>
                     </div>
                 </form>

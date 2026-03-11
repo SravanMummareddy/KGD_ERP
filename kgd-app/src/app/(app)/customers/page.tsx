@@ -18,7 +18,7 @@ export default async function CustomersPage() {
         orderBy: { name: 'asc' },
     })
 
-    const outstanding = await getCustomerOutstandingSummaries(customers.map((c) => c.id))
+    const outstanding = await getCustomerOutstandingSummaries(customers.map((c: { id: string }) => c.id))
     const netOutstandingMap = new Map(outstanding.map((o) => [o.customerId, o.netOutstanding]))
 
     return (
@@ -53,7 +53,7 @@ export default async function CustomersPage() {
                                 </td>
                             </tr>
                         )}
-                        {customers.map((c) => {
+                        {customers.map((c: typeof customers[number]) => {
                             const netOutstanding = Number(netOutstandingMap.get(c.id) ?? 0)
                             const contact = c.contacts[0]
                             return (

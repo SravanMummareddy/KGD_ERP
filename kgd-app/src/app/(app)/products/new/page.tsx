@@ -1,5 +1,8 @@
+'use client'
+
 import { createProduct } from '@/actions/products'
 import Link from 'next/link'
+import SelectOrCustom from '@/components/invoices/SelectOrCustom'
 
 export default function NewProductPage() {
     return (
@@ -38,31 +41,30 @@ export default function NewProductPage() {
                     </div>
 
                     <div className="form-grid-2">
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="sizeInches">Size (inches)</label>
-                            <input id="sizeInches" name="sizeInches" type="number" step="0.5" min="1"
-                                className="form-input" placeholder="e.g. 10" />
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="gsm">GSM</label>
-                            <input id="gsm" name="gsm" type="number" min="1"
-                                className="form-input" placeholder="e.g. 80" />
-                        </div>
+                        <SelectOrCustom
+                            name="sizeInches"
+                            label="Size (inches)"
+                            options={['6', '8', '10', '12', '14']}
+                            placeholder="Enter custom size"
+                            inputType="number"
+                            step="0.5"
+                        />
+                        <SelectOrCustom
+                            name="gsm"
+                            label="GSM"
+                            options={['70', '80', '100', '120', '140']}
+                            placeholder="Enter custom GSM"
+                            inputType="number"
+                        />
                     </div>
 
                     <div className="form-grid-2">
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="color">Color</label>
-                            <input id="color" name="color" type="text" className="form-input"
-                                placeholder="e.g. Silver, Gold, Green" list="colors" />
-                            <datalist id="colors">
-                                <option value="Silver" />
-                                <option value="Gold" />
-                                <option value="Green" />
-                                <option value="Multi" />
-                                <option value="White" />
-                            </datalist>
-                        </div>
+                        <SelectOrCustom
+                            name="color"
+                            label="Color"
+                            options={['Silver', 'Gold', 'Green', 'White', 'Multi']}
+                            placeholder="Enter custom color"
+                        />
                         <div className="form-group">
                             <label className="form-label" htmlFor="defaultRate">Default Rate (₹)</label>
                             <input id="defaultRate" name="defaultRate" type="number" step="0.01" min="0"
@@ -81,7 +83,7 @@ export default function NewProductPage() {
 
                     <hr className="divider" />
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                        <Link href="/products" className="btn btn-secondary">Cancel</Link>
+                        <Link href="/products" className="btn btn-secondary">← Back</Link>
                         <button type="submit" className="btn btn-primary">Save Product →</button>
                     </div>
                 </form>
