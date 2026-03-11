@@ -120,6 +120,7 @@ export default async function PaymentsPage({
                 <table>
                     <thead>
                         <tr>
+                            <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
                             <th>Date</th>
                             <th>
                                 <Suspense fallback="Customer">
@@ -140,15 +141,18 @@ export default async function PaymentsPage({
                     <tbody>
                         {payments.length === 0 && (
                             <tr>
-                                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
                                     No payments match this filter.{' '}
                                     <Link href="/payments" style={{ color: 'var(--color-primary)' }}>Clear filters</Link>
                                 </td>
                             </tr>
                         )}
-                        {payments.map((pay: PaymentRow) => (
-                            <tr key={pay.id}>
-                                <td className="text-muted" style={{ whiteSpace: 'nowrap' }}>{formatDate(pay.paymentDate)}</td>
+                        {payments.map((pay: PaymentRow, i: number) => {
+                            const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
+                            return (
+                                <tr key={pay.id}>
+                                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
+                                    <td className="text-muted" style={{ whiteSpace: 'nowrap' }}>{formatDate(pay.paymentDate)}</td>
                                 <td>
                                     <Link href={`/customers/${pay.customerId}`} style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500 }}>
                                         {pay.customer.businessName || pay.customer.name}
@@ -181,7 +185,7 @@ export default async function PaymentsPage({
                                     <Link href={`/payments/${pay.id}/edit`} className="btn btn-secondary btn-sm">Edit</Link>
                                 </td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>

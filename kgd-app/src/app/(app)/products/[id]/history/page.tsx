@@ -132,6 +132,7 @@ export default async function ProductHistoryPage({
                 <table>
                     <thead>
                         <tr>
+                            <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
                             <th>Date</th>
                             <th>Event Type</th>
                             <th style={{ textAlign: 'right' }}>Quantity</th>
@@ -142,13 +143,16 @@ export default async function ProductHistoryPage({
                     <tbody>
                         {paginatedEvents.length === 0 && (
                             <tr>
-                                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
                                     No stock movements recorded yet.
                                 </td>
                             </tr>
                         )}
-                        {paginatedEvents.map(evt => (
+                        {paginatedEvents.map((evt: TimelineEvent, i: number) => {
+                            const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
+                            return (
                             <tr key={evt.id}>
+                                <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
                                 <td className="text-muted" style={{ fontSize: '0.85rem' }}>
                                     {formatDateTime(evt.date)}
                                 </td>
@@ -182,7 +186,7 @@ export default async function ProductHistoryPage({
                                 </td>
                                 <td className="text-muted" style={{ fontSize: '0.85rem' }}>{evt.userOrCustomer}</td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>

@@ -114,6 +114,7 @@ export default async function AuditLogPage({
                 <table>
                     <thead>
                         <tr>
+                            <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
                             <th style={{ minWidth: 160 }}>Date / Time</th>
                             <th>User</th>
                             <th>
@@ -132,14 +133,17 @@ export default async function AuditLogPage({
                     <tbody>
                         {logs.length === 0 && (
                             <tr>
-                                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
                                     No audit logs match this filter.{' '}
                                     {hasFilter && <a href="/audit">Clear filters</a>}
                                 </td>
                             </tr>
                         )}
-                        {logs.map((log: LogRow) => (
+                        {logs.map((log: LogRow, i: number) => {
+                            const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
+                            return (
                             <tr key={log.id}>
+                                <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
                                 <td className="text-muted" style={{ fontSize: '0.8rem', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                     {formatDateTime(log.performedAt)}
                                 </td>
@@ -173,7 +177,7 @@ export default async function AuditLogPage({
                                     )}
                                 </td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>

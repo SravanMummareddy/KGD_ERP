@@ -148,9 +148,10 @@ export default async function InvoicesPage({
                         )}
                         {invoices.map((inv: typeof invoices[number], i: number) => {
                             const info = invoiceStatusInfo(inv.status)
+                            const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
                             return (
                                 <tr key={inv.id}>
-                                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{i + 1}</td>
+                                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
                                     <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>
                                         <Link href={`/invoices/${inv.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
                                             {inv.invoiceNumber}

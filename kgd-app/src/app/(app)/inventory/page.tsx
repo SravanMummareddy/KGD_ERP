@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import { addInventoryItem } from '@/actions/inventory'
 import RecordMovementForm from '@/components/inventory/RecordMovementForm'
+import AddNewItemForm from '@/components/inventory/AddNewItemForm'
 
 export default async function InventoryPage() {
     const session = await auth()
@@ -21,13 +22,7 @@ export default async function InventoryPage() {
         orderBy: [{ type: 'asc' }, { name: 'asc' }],
     })
 
-    // Group by category
     type ItemRow = typeof items[number]
-    const grouped: Record<string, typeof items> = {}
-    for (const item of items) {
-        if (!grouped[item.category]) grouped[item.category] = []
-        grouped[item.category].push(item)
-    }
 
     return (
         <>
@@ -83,48 +78,51 @@ export default async function InventoryPage() {
                         </div>
                     </div>
 
-                    {/* Raw Material Tables grouped by category */}
-                    {Object.entries(grouped).map(([category, categoryItems]) => (
-                        <div key={category} style={{ marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Raw Material • {category}
-                            </h2>
-                            <div className="table-container">
-                                <table>
-                                    <thead>
+                    {/* Consolidated Raw Material Table */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <h2 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Raw Materials
+                        </h2>
+                        <div className="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
+                                        <th>Item Name</th>
+                                        <th>Category</th>
+                                        <th style={{ textAlign: 'right' }}>Current Stock</th>
+                                        <th>Unit</th>
+                                        <th>Last Updated</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.length === 0 && (
                                         <tr>
-                                            <th>Item</th>
-                                            <th style={{ textAlign: 'right' }}>Current Stock</th>
-                                            <th>Unit</th>
-                                            <th>Last Updated</th>
+                                            <td colSpan={6} className="text-muted" style={{ textAlign: 'center', padding: '1rem' }}>No inventory items yet. Add items using the form.</td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {categoryItems.map((item: ItemRow) => (
-                                            <tr key={item.id}>
-                                                <td style={{ fontWeight: 500 }}>
-                                                    <Link href={`/inventory/${item.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
-                                                        {item.name}
-                                                    </Link>
-                                                </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: Number(item.currentStock) <= 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                                                    {Number(item.currentStock).toFixed(2)}
-                                                </td>
-                                                <td className="text-muted">{item.unit}</td>
-                                                <td className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                                    {item.transactions[0] ? formatDate(item.transactions[0].transactionDate) : 'Never'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    )}
+                                    {items.map((item: ItemRow, i: number) => (
+                                        <tr key={item.id}>
+                                            <td className="text-muted" style={{ fontSize: '0.8rem' }}>{i + 1}</td>
+                                            <td style={{ fontWeight: 500 }}>
+                                                <Link href={`/inventory/${item.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                                                    {item.name}
+                                                </Link>
+                                            </td>
+                                            <td className="text-muted">{item.category}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: Number(item.currentStock) <= 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                                                {Number(item.currentStock).toFixed(2)}
+                                            </td>
+                                            <td className="text-muted">{item.unit}</td>
+                                            <td className="text-muted" style={{ fontSize: '0.8rem' }}>
+                                                {item.transactions[0] ? formatDate(item.transactions[0].transactionDate) : 'Never'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                    ))}
-
-                    {items.length === 0 && (
-                        <p className="text-muted">No inventory items yet. Add items using the form.</p>
-                    )}
+                    </div>
                 </div>
 
                 {/* Right panel: Forms */}
@@ -133,43 +131,7 @@ export default async function InventoryPage() {
                     <RecordMovementForm items={items} products={products} />
 
                     {/* Add new item */}
-                    <div className="card">
-                        <h2 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem' }}>Add New Inventory Item</h2>
-                        <form action={addInventoryItem} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            <div className="form-group">
-                                <label className="form-label">Item Name *</label>
-                                <input name="name" type="text" className="form-input" placeholder="e.g. Brown Paper 700mm 80 GSM" required />
-                            </div>
-                            <div className="form-grid-2">
-                                <div className="form-group">
-                                    <label className="form-label">Category</label>
-                                    <input name="category" type="text" className="form-input" placeholder="Brown Paper" list="inv-cats" />
-                                    <datalist id="inv-cats">
-                                        <option value="Brown Paper" />
-                                        <option value="Threads" />
-                                        <option value="Films" />
-                                        <option value="Gum Bags" />
-                                        <option value="Covers" />
-                                        <option value="Packing" />
-                                    </datalist>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Unit</label>
-                                    <select name="unit" className="form-select">
-                                        <option value="kg">kg</option>
-                                        <option value="roll">roll</option>
-                                        <option value="piece">piece</option>
-                                        <option value="bundle">bundle</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Opening Stock</label>
-                                <input name="currentStock" type="number" step="0.001" min="0" defaultValue="0" className="form-input" />
-                            </div>
-                            <button type="submit" className="btn btn-secondary" style={{ justifyContent: 'center' }}>Add Item</button>
-                        </form>
-                    </div>
+                    <AddNewItemForm />
                 </div>
             </div>
         </>

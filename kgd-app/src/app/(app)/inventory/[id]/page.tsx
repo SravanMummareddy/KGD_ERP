@@ -78,6 +78,7 @@ export default async function InventoryItemHistoryPage({
                 <table>
                     <thead>
                         <tr>
+                            <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
                             <th>Date / Time</th>
                             <th>Type</th>
                             <th style={{ textAlign: 'right' }}>Quantity</th>
@@ -89,13 +90,16 @@ export default async function InventoryItemHistoryPage({
                     <tbody>
                         {transactions.length === 0 && (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
                                     No movements recorded yet.
                                 </td>
                             </tr>
                         )}
-                        {transactions.map((tx: typeof transactions[number]) => (
+                        {transactions.map((tx: typeof transactions[number], i: number) => {
+                            const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
+                            return (
                             <tr key={tx.id}>
+                                <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
                                 <td className="text-muted" style={{ fontSize: '0.85rem' }}>
                                     {formatDateTime(tx.transactionDate)}
                                 </td>
@@ -123,7 +127,7 @@ export default async function InventoryItemHistoryPage({
                                 <td className="text-muted" style={{ fontSize: '0.85rem' }}>{tx.notes || '—'}</td>
                                 <td style={{ fontSize: '0.85rem' }}>{tx.createdBy.name}</td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>

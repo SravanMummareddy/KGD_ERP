@@ -25,6 +25,7 @@ export default async function ProductsPage() {
                     <table>
                         <thead>
                             <tr>
+                                <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
                                 <th>Product Name</th>
                                 <th>Size</th>
                                 <th>GSM</th>
@@ -38,13 +39,14 @@ export default async function ProductsPage() {
                         <tbody>
                             {items.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '1.5rem' }}>
+                                    <td colSpan={9} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '1.5rem' }}>
                                         No products yet.
                                     </td>
                                 </tr>
                             )}
-                            {items.map((p: typeof products[number]) => (
+                            {items.map((p: typeof products[number], i: number) => (
                                 <tr key={p.id}>
+                                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{i + 1}</td>
                                     <td style={{ fontWeight: 500 }}>{p.name}</td>
                                     <td className="text-muted">{p.sizeInches ? `${p.sizeInches}"` : '—'}</td>
                                     <td className="text-muted">{p.gsm ?? '—'}</td>

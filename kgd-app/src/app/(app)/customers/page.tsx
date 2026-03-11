@@ -57,6 +57,7 @@ export default async function CustomersPage({
                 <table>
                     <thead>
                         <tr>
+                            <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
                             <th>Business / Contact</th>
                             <th>Phone</th>
                             <th>Invoices</th>
@@ -67,15 +68,17 @@ export default async function CustomersPage({
                     <tbody>
                         {customers.length === 0 && (
                             <tr>
-                                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
                                     No customers yet. <Link href="/customers/new">Add your first customer →</Link>
                                 </td>
                             </tr>
                         )}
-                        {customers.map((c: typeof customers[number]) => {
+                        {customers.map((c: typeof customers[number], i: number) => {
                             const netOutstanding = Number(netOutstandingMap.get(c.id) ?? 0)
+                            const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
                             return (
                                 <tr key={c.id}>
+                                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
                                     <td>
                                         <div style={{ fontWeight: 600 }}>
                                             <Link href={`/customers/${c.id}`} style={{ color: 'var(--color-text)', textDecoration: 'none' }}>
