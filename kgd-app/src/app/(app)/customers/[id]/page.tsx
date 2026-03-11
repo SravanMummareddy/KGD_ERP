@@ -82,7 +82,10 @@ export default async function CustomerDetailPage({
                     {customer.phone && <p className="text-muted">📞 {customer.phone}{customer.secondaryPhone ? ` / ${customer.secondaryPhone}` : ''}</p>}
                     {customer.city && <p className="text-muted">📍 {customer.city}</p>}
                 </div>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <Link href="/customers" className="btn btn-secondary">
+                        ← Customers
+                    </Link>
                     <Link href={`/invoices/new?customerId=${customer.id}`} className="btn btn-primary">
                         + New Invoice
                     </Link>

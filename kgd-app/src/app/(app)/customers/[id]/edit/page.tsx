@@ -17,7 +17,10 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Edit Customer</h1>
+                <div>
+                    <h1 className="page-title">Edit Customer</h1>
+                    <p className="text-muted">Update details for {customer.businessName || customer.name}</p>
+                </div>
                 <Link href={`/customers/${customer.id}`} className="btn btn-secondary">← Back</Link>
             </div>
 

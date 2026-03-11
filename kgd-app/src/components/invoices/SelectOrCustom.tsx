@@ -38,7 +38,7 @@ export default function SelectOrCustom({
 
     return (
         <div className="form-group">
-            <label className="form-label">{label}</label>
+            {label && <label className="form-label">{label}</label>}
             <select
                 name={isCustom ? undefined : name}
                 className="form-input"
@@ -60,7 +60,7 @@ export default function SelectOrCustom({
                     className="form-input"
                     style={{ marginTop: '0.5rem' }}
                     placeholder={placeholder}
-                    value={customVal}
+                    defaultValue={customVal}
                     onChange={(e) => setCustomVal(e.target.value)}
                     required={required}
                     autoFocus
