@@ -1,5 +1,8 @@
-import { auth } from '@/lib/auth'
+import NextAuth from 'next-auth'
+import { authConfig } from '@/lib/auth.config'
 import { NextResponse } from 'next/server'
+
+const { auth } = NextAuth(authConfig)
 import type { NextRequest } from 'next/server'
 
 export default auth(function middleware(req: NextRequest & { auth: unknown }) {
