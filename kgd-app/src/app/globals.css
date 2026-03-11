@@ -493,3 +493,18 @@ tr:hover td { background: #f8fafc; }
     color: #60a5fa;
   }
 }
+
+
+/* Fix Mobile Topbar Layout */
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    z-index: 50;
+  }
+  .mobile-topbar {
+    z-index: 40;
+    width: 100%;
+  }
+}
