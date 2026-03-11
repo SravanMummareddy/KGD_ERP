@@ -85,7 +85,15 @@ async function main() {
     ] as const
 
     for (const p of productsData) {
-        await prisma.product.create({ data: { ...p, isActive: true } })
+        // Create random stockPieces: between 50 and 500 packets (so 50*14 to 500*14 pieces)
+        const randomPackets = randomInt(50, 500)
+        await prisma.product.create({ 
+            data: { 
+                ...p, 
+                stockPieces: randomPackets * 14,
+                isActive: true 
+            } 
+        })
     }
 
     // --- 4. Inventory ---

@@ -111,6 +111,18 @@ export async function createInvoice(formData: FormData) {
             },
         })
 
+        // Deduct inventory pieces
+        for (const item of items) {
+            if (item.productId) {
+                const qty = Number(item.quantity)
+                const piecesToDeduct = item.unit.toLowerCase() === 'packet' ? qty * 14 : qty
+                await tx.product.update({
+                    where: { id: item.productId },
+                    data: { stockPieces: { decrement: piecesToDeduct } }
+                })
+            }
+        }
+
         // Deduct credit from customer if applied
         if (creditApplied > 0) {
             await tx.customer.update({
@@ -198,6 +210,19 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
                 balanceDue: Number(invoice.totalAmount),
             },
         })
+
+        // 4. Restore inventory pieces
+        const invoiceItems = await tx.invoiceItem.findMany({ where: { invoiceId } })
+        for (const item of invoiceItems) {
+            if (item.productId) {
+                const qty = Number(item.quantity)
+                const piecesToRestore = item.unit.toLowerCase() === 'packet' ? qty * 14 : qty
+                await tx.product.update({
+                    where: { id: item.productId },
+                    data: { stockPieces: { increment: piecesToRestore } }
+                })
+            }
+        }
     })
 
     await writeAuditLog({

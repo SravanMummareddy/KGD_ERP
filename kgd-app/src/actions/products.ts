@@ -98,22 +98,31 @@ export async function updateProduct(productId: string, formData: FormData): Prom
 
 export async function adjustStock(
     productId: string,
-    packetsToAdd: number,
-    looseToAdd: number,
+    type: 'IN' | 'OUT',
+    packets: number,
+    loose: number,
     reason: string
 ): Promise<void> {
     const session = await auth()
     if (!session?.user) throw new Error('Unauthorized')
 
-    const piecesToAdd = (packetsToAdd * 14) + looseToAdd
+    const piecesToMove = (packets * 14) + loose
+    if (piecesToMove <= 0) throw new Error('Quantity must be greater than 0')
 
     const oldProduct = await prisma.product.findUnique({ where: { id: productId } })
     if (!oldProduct) throw new Error('Product not found')
+    
+    // Don't allow negative inventory
+    if (type === 'OUT' && oldProduct.stockPieces < piecesToMove) {
+        throw new Error('Not enough stock available')
+    }
 
     const newProduct = await prisma.product.update({
         where: { id: productId },
         data: {
-            stockPieces: { increment: piecesToAdd }
+            stockPieces: type === 'IN' 
+                ? { increment: piecesToMove }
+                : { decrement: piecesToMove }
         }
     })
 
@@ -123,7 +132,7 @@ export async function adjustStock(
         action: 'UPDATE',
         performedBy: session.user.id,
         oldValues: { stockPieces: oldProduct.stockPieces },
-        newValues: { stockPieces: newProduct.stockPieces, piecesAdded: piecesToAdd, reason }
+        newValues: { stockPieces: newProduct.stockPieces, piecesMoved: piecesToMove, type, reason }
     })
 
     revalidatePath('/products')

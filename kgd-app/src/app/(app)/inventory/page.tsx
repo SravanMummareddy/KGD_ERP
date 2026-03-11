@@ -3,7 +3,8 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
-import { addInventoryTransaction, addInventoryItem } from '@/actions/inventory'
+import { addInventoryItem } from '@/actions/inventory'
+import RecordMovementForm from '@/components/inventory/RecordMovementForm'
 
 export default async function InventoryPage() {
     const session = await auth()
@@ -121,43 +122,7 @@ export default async function InventoryPage() {
                 {/* Right panel: Forms */}
                 <div>
                     {/* Record transaction */}
-                    <div className="card" style={{ marginBottom: '1.5rem' }}>
-                        <h2 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem' }}>Record Stock Movement</h2>
-                        <form action={addInventoryTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            <div className="form-group">
-                                <label className="form-label">Item *</label>
-                                <select name="inventoryItemId" className="form-select" required>
-                                    <option value="">— Select item —</option>
-                                    {items.map((item: ItemRow) => (
-                                        <option key={item.id} value={item.id}>{item.name} ({Number(item.currentStock).toFixed(2)} {item.unit})</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="form-grid-2">
-                                <div className="form-group">
-                                    <label className="form-label">Type *</label>
-                                    <select name="type" className="form-select">
-                                        <option value="PURCHASE">Purchase (IN)</option>
-                                        <option value="USAGE">Usage (OUT)</option>
-                                        <option value="ADJUSTMENT">Adjustment</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Quantity *</label>
-                                    <input name="quantity" type="number" step="0.001" min="0.001" className="form-input" required />
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Rate / unit (₹)</label>
-                                <input name="rate" type="number" step="0.01" min="0" className="form-input" placeholder="Optional" />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Notes</label>
-                                <input name="notes" type="text" className="form-input" placeholder="Supplier name, remarks…" />
-                            </div>
-                            <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center' }}>Record Movement</button>
-                        </form>
-                    </div>
+                    <RecordMovementForm items={items} products={products} />
 
                     {/* Add new item */}
                     <div className="card">

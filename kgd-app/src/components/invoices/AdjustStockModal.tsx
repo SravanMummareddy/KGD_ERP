@@ -31,7 +31,7 @@ export default function AdjustStockModal({
         }
 
         try {
-            await adjustStock(productId, p, l, reason)
+            await adjustStock(productId, 'IN', p, l, reason)
             setIsOpen(false)
             setPackets('')
             setLoose('')
