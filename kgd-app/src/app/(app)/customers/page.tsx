@@ -4,10 +4,22 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { getCustomerOutstandingSummaries } from '@/lib/outstanding'
+import Pagination from '@/components/ui/Pagination'
 
-export default async function CustomersPage() {
+export default async function CustomersPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ page?: string }>
+}) {
     const session = await auth()
     if (!session?.user) redirect('/login')
+
+    const sp = await searchParams
+    const currentPage = Number(sp.page) || 1
+    const ITEMS_PER_PAGE = 10
+
+    const totalCustomers = await prisma.customer.count({ where: { isActive: true } })
+    const totalPages = Math.ceil(totalCustomers / ITEMS_PER_PAGE)
 
     const customers = await prisma.customer.findMany({
         where: { isActive: true },
@@ -24,6 +36,8 @@ export default async function CustomersPage() {
             _count: { select: { invoices: true } },
         },
         orderBy: { name: 'asc' },
+        take: ITEMS_PER_PAGE,
+        skip: (currentPage - 1) * ITEMS_PER_PAGE,
     })
 
     const outstanding = await getCustomerOutstandingSummaries(customers.map((c: { id: string }) => c.id))
@@ -34,7 +48,7 @@ export default async function CustomersPage() {
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Customers</h1>
-                    <p className="text-muted">{customers.length} active customers</p>
+                    <p className="text-muted">{totalCustomers} active customers</p>
                 </div>
                 <Link href="/customers/new" className="btn btn-primary">+ New Customer</Link>
             </div>
@@ -109,6 +123,8 @@ export default async function CustomersPage() {
                     </tbody>
                 </table>
             </div>
+            
+            <Pagination totalPages={totalPages} currentPage={currentPage} />
         </>
     )
 }

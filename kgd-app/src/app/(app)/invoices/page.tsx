@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, invoiceStatusInfo } from '@/lib/utils'
 import { Suspense } from 'react'
 import ColumnFilter from '@/components/layout/ColumnFilter'
 import DateDropdownFilter from '@/components/layout/DateDropdownFilter'
+import Pagination from '@/components/ui/Pagination'
 
 const STATUS_OPTIONS = [
     { value: 'UNPAID', label: 'Unpaid' },
@@ -33,7 +34,7 @@ function getDateRange(range: string | null, from: string | null, to: string | nu
 export default async function InvoicesPage({
     searchParams,
 }: {
-    searchParams: Promise<{ range?: string; from?: string; to?: string; status?: string | string[]; customer?: string | string[] }>
+    searchParams: Promise<{ range?: string; from?: string; to?: string; status?: string | string[]; customer?: string | string[]; page?: string }>
 }) {
     const session = await auth()
     if (!session?.user) redirect('/login')
@@ -59,15 +60,24 @@ export default async function InvoicesPage({
         label: c.businessName || c.name,
     }))
 
+    const currentPage = Number(sp.page) || 1
+    const ITEMS_PER_PAGE = 10
+
+    const whereClause = {
+        ...(dateFilter ? { invoiceDate: dateFilter } : {}),
+        ...(statusFilter.length > 0 ? { status: { in: statusFilter as ('UNPAID' | 'PARTIAL' | 'PAID' | 'CANCELLED')[] } } : {}),
+        ...(customerFilter.length > 0 ? { customerId: { in: customerFilter } } : {}),
+    }
+
+    const totalInvoices = await prisma.invoice.count({ where: whereClause })
+    const totalPages = Math.ceil(totalInvoices / ITEMS_PER_PAGE)
+
     const invoices = await prisma.invoice.findMany({
         include: { customer: true },
-        where: {
-            ...(dateFilter ? { invoiceDate: dateFilter } : {}),
-            ...(statusFilter.length > 0 ? { status: { in: statusFilter as ('UNPAID' | 'PARTIAL' | 'PAID' | 'CANCELLED')[] } } : {}),
-            ...(customerFilter.length > 0 ? { customerId: { in: customerFilter } } : {}),
-        },
+        where: whereClause,
         orderBy: { invoiceDate: 'desc' },
-        take: 300,
+        take: ITEMS_PER_PAGE,
+        skip: (currentPage - 1) * ITEMS_PER_PAGE,
     })
 
     const currentRange = sp.range ?? ''
@@ -88,7 +98,7 @@ export default async function InvoicesPage({
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Invoices</h1>
-                    <p className="text-muted">{invoices.length} invoices shown</p>
+                    <p className="text-muted">{totalInvoices} invoices total</p>
                 </div>
                 <Link href="/invoices/new" className="btn btn-primary">+ New Invoice</Link>
             </div>
@@ -174,6 +184,8 @@ export default async function InvoicesPage({
                     </tbody>
                 </table>
             </div>
+
+            <Pagination totalPages={totalPages} currentPage={currentPage} />
         </>
     )
 }

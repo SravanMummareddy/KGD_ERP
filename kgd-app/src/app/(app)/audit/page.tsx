@@ -5,6 +5,7 @@ import { formatDateTime } from '@/lib/utils'
 import { Suspense } from 'react'
 import ColumnFilter from '@/components/layout/ColumnFilter'
 import DateDropdownFilter from '@/components/layout/DateDropdownFilter'
+import Pagination from '@/components/ui/Pagination'
 
 function getDateRange(range: string | null, from: string | null, to: string | null) {
     const now = new Date()
@@ -44,6 +45,7 @@ export default async function AuditLogPage({
         range?: string; from?: string; to?: string
         entity?: string | string[]
         action?: string | string[]
+        page?: string
     }>
 }) {
     const session = await auth()
@@ -59,15 +61,24 @@ export default async function AuditLogPage({
         ? (Array.isArray(sp.action) ? sp.action : [sp.action])
         : []
 
+    const currentPage = Number(sp.page) || 1
+    const ITEMS_PER_PAGE = 10
+
+    const whereClause = {
+        ...(dateFilter ? { performedAt: dateFilter } : {}),
+        ...(entityFilter.length > 0 ? { entity: { in: entityFilter } } : {}),
+        ...(actionFilter.length > 0 ? { action: { in: actionFilter } } : {}),
+    }
+
+    const totalLogs = await prisma.auditLog.count({ where: whereClause })
+    const totalPages = Math.ceil(totalLogs / ITEMS_PER_PAGE)
+
     const logs = await prisma.auditLog.findMany({
         include: { user: { select: { name: true } } },
-        where: {
-            ...(dateFilter ? { performedAt: dateFilter } : {}),
-            ...(entityFilter.length > 0 ? { entity: { in: entityFilter } } : {}),
-            ...(actionFilter.length > 0 ? { action: { in: actionFilter } } : {}),
-        },
+        where: whereClause,
         orderBy: { performedAt: 'desc' },
-        take: 300,
+        take: ITEMS_PER_PAGE,
+        skip: (currentPage - 1) * ITEMS_PER_PAGE,
     })
 
     type LogRow = typeof logs[number]
@@ -85,7 +96,7 @@ export default async function AuditLogPage({
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Audit Log</h1>
-                    <p className="text-muted">{logs.length} entries shown</p>
+                    <p className="text-muted">{totalLogs} entries total</p>
                 </div>
                 {hasFilter && (
                     <a href="/audit" className="btn btn-secondary">✕ Clear all filters</a>
@@ -166,6 +177,8 @@ export default async function AuditLogPage({
                     </tbody>
                 </table>
             </div>
+
+            <Pagination totalPages={totalPages} currentPage={currentPage} />
         </>
     )
 }

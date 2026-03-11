@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, paymentMethodLabel } from '@/lib/utils'
 import { Suspense } from 'react'
 import ColumnFilter from '@/components/layout/ColumnFilter'
 import DateDropdownFilter from '@/components/layout/DateDropdownFilter'
+import Pagination from '@/components/ui/Pagination'
 
 function getDateRange(range: string | null, from: string | null, to: string | null) {
     const now = new Date()
@@ -34,7 +35,7 @@ const METHOD_OPTIONS = [
 export default async function PaymentsPage({
     searchParams,
 }: {
-    searchParams: Promise<{ range?: string; from?: string; to?: string; method?: string | string[]; customer?: string | string[] }>
+    searchParams: Promise<{ range?: string; from?: string; to?: string; method?: string | string[]; customer?: string | string[]; page?: string }>
 }) {
     const session = await auth()
     if (!session?.user) redirect('/login')
@@ -59,15 +60,24 @@ export default async function PaymentsPage({
         orderBy: { name: 'asc' },
     })
 
+    const currentPage = Number(sp.page) || 1
+    const ITEMS_PER_PAGE = 10
+
+    const whereClause = {
+        ...(dateFilter ? { paymentDate: dateFilter } : {}),
+        ...(methodFilter.length > 0 ? { method: { in: methodFilter as ('CASH' | 'UPI' | 'BANK_TRANSFER' | 'CHEQUE' | 'OTHER')[] } } : {}),
+        ...(customerFilter.length > 0 ? { customerId: { in: customerFilter } } : {}),
+    }
+
+    const totalPayments = await prisma.payment.count({ where: whereClause })
+    const totalPages = Math.ceil(totalPayments / ITEMS_PER_PAGE)
+
     const payments = await prisma.payment.findMany({
         include: { customer: true, allocations: { include: { invoice: true } } },
-        where: {
-            ...(dateFilter ? { paymentDate: dateFilter } : {}),
-            ...(methodFilter.length > 0 ? { method: { in: methodFilter as ('CASH' | 'UPI' | 'BANK_TRANSFER' | 'CHEQUE' | 'OTHER')[] } } : {}),
-            ...(customerFilter.length > 0 ? { customerId: { in: customerFilter } } : {}),
-        },
+        where: whereClause,
         orderBy: { paymentDate: 'desc' },
-        take: 300,
+        take: ITEMS_PER_PAGE,
+        skip: (currentPage - 1) * ITEMS_PER_PAGE,
     })
 
     const customerOptions = allCustomers.map((c: typeof allCustomers[number]) => ({
@@ -90,7 +100,7 @@ export default async function PaymentsPage({
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Payments</h1>
-                    <p className="text-muted">{payments.length} payments shown</p>
+                    <p className="text-muted">{totalPayments} payments total</p>
                 </div>
                 <Link href="/payments/new" className="btn btn-primary">+ Record Payment</Link>
             </div>
@@ -175,6 +185,8 @@ export default async function PaymentsPage({
                     </tbody>
                 </table>
             </div>
+
+            <Pagination totalPages={totalPages} currentPage={currentPage} />
         </>
     )
 }

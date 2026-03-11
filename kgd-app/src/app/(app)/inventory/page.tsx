@@ -60,7 +60,11 @@ export default async function InventoryPage() {
                                 <tbody>
                                     {products.map((p: typeof products[number]) => (
                                         <tr key={p.id}>
-                                            <td style={{ fontWeight: 500 }}>{p.name}</td>
+                                            <td style={{ fontWeight: 500 }}>
+                                                <Link href={`/products/${p.id}/history`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                                                    {p.name}
+                                                </Link>
+                                            </td>
                                             <td className="text-muted">{p.sizeInches ? `${p.sizeInches}"` : '—'}</td>
                                             <td className="text-muted">{p.gsm ?? '—'}</td>
                                             <td style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
@@ -98,7 +102,11 @@ export default async function InventoryPage() {
                                     <tbody>
                                         {categoryItems.map((item: ItemRow) => (
                                             <tr key={item.id}>
-                                                <td style={{ fontWeight: 500 }}>{item.name}</td>
+                                                <td style={{ fontWeight: 500 }}>
+                                                    <Link href={`/inventory/${item.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                                                        {item.name}
+                                                    </Link>
+                                                </td>
                                                 <td style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: Number(item.currentStock) <= 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
                                                     {Number(item.currentStock).toFixed(2)}
                                                 </td>
