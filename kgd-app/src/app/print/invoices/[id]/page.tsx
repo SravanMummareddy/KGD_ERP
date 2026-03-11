@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import PrintButton from '@/components/PrintButton'
 
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
@@ -50,9 +51,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
           }
         `}</style>
 
-            <button className="print-btn" onClick={() => window.print()} suppressHydrationWarning>
-                🖨 Print
-            </button>
+            <PrintButton />
 
             <div className="print-page">
                 {/* Header */}

@@ -2,13 +2,17 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { formatDateTime } from '@/lib/utils'
-import DateRangeFilter from '@/components/layout/DateRangeFilter'
 import { Suspense } from 'react'
+import ColumnFilter from '@/components/layout/ColumnFilter'
+import DateDropdownFilter from '@/components/layout/DateDropdownFilter'
 
-function getDateRange(range: string|null, from: string|null, to: string|null) {
+function getDateRange(range: string | null, from: string | null, to: string | null) {
     const now = new Date()
-    if (range === 'custom' && from && to) {
+    if (from && to) {
         return { gte: new Date(from), lte: new Date(to + 'T23:59:59') }
+    }
+    if (range === 'month') {
+        return { gte: new Date(now.getFullYear(), now.getMonth(), 1) }
     }
     const days = parseInt(range ?? '0')
     if (!days) return undefined
@@ -18,13 +22,29 @@ function getDateRange(range: string|null, from: string|null, to: string|null) {
     return { gte: start }
 }
 
-const ENTITIES = ['Customer', 'Invoice', 'Payment', 'Product', 'Inventory']
-const ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'CANCEL']
+const ENTITY_OPTIONS = [
+    { value: 'Customer', label: 'Customer' },
+    { value: 'Invoice', label: 'Invoice' },
+    { value: 'Payment', label: 'Payment' },
+    { value: 'Product', label: 'Product' },
+    { value: 'Inventory', label: 'Inventory' },
+]
+
+const ACTION_OPTIONS = [
+    { value: 'CREATE', label: 'Create' },
+    { value: 'UPDATE', label: 'Update' },
+    { value: 'DELETE', label: 'Delete' },
+    { value: 'CANCEL', label: 'Cancel' },
+]
 
 export default async function AuditLogPage({
     searchParams,
 }: {
-    searchParams: Promise<{ range?: string; from?: string; to?: string; entity?: string; action?: string; q?: string }>
+    searchParams: Promise<{
+        range?: string; from?: string; to?: string
+        entity?: string | string[]
+        action?: string | string[]
+    }>
 }) {
     const session = await auth()
     if (!session?.user || session.user.role !== 'ADMIN') redirect('/dashboard')
@@ -32,19 +52,19 @@ export default async function AuditLogPage({
     const sp = await searchParams
     const dateFilter = getDateRange(sp.range ?? null, sp.from ?? null, sp.to ?? null)
 
+    const entityFilter = sp.entity
+        ? (Array.isArray(sp.entity) ? sp.entity : [sp.entity])
+        : []
+    const actionFilter = sp.action
+        ? (Array.isArray(sp.action) ? sp.action : [sp.action])
+        : []
+
     const logs = await prisma.auditLog.findMany({
         include: { user: { select: { name: true } } },
         where: {
             ...(dateFilter ? { performedAt: dateFilter } : {}),
-            ...(sp.entity ? { entity: sp.entity } : {}),
-            ...(sp.action ? { action: sp.action } : {}),
-            ...(sp.q ? {
-                OR: [
-                    { entity: { contains: sp.q, mode: 'insensitive' } },
-                    { action: { contains: sp.q, mode: 'insensitive' } },
-                    { entityId: { contains: sp.q, mode: 'insensitive' } },
-                ]
-            } : {}),
+            ...(entityFilter.length > 0 ? { entity: { in: entityFilter } } : {}),
+            ...(actionFilter.length > 0 ? { action: { in: actionFilter } } : {}),
         },
         orderBy: { performedAt: 'desc' },
         take: 300,
@@ -58,51 +78,43 @@ export default async function AuditLogPage({
         CANCEL: 'badge-amber',
     }
 
+    const hasFilter = entityFilter.length > 0 || actionFilter.length > 0 || sp.range || sp.from
+
     return (
         <>
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Audit Log</h1>
-                    <p className="text-muted">All key changes recorded — {logs.length} entries shown</p>
+                    <p className="text-muted">{logs.length} entries shown</p>
                 </div>
+                {hasFilter && (
+                    <a href="/audit" className="btn btn-secondary">✕ Clear all filters</a>
+                )}
             </div>
 
-            {/* Filters */}
-            <form method="GET" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1rem' }}>
-                <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-muted)', display: 'block', marginBottom: '0.25rem' }}>Entity</label>
-                    <select name="entity" className="form-input" style={{ minWidth: 140 }} defaultValue={sp.entity ?? ''}>
-                        <option value="">All Entities</option>
-                        {ENTITIES.map((e) => <option key={e} value={e}>{e}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-muted)', display: 'block', marginBottom: '0.25rem' }}>Action</label>
-                    <select name="action" className="form-input" style={{ minWidth: 130 }} defaultValue={sp.action ?? ''}>
-                        <option value="">All Actions</option>
-                        {ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-muted)', display: 'block', marginBottom: '0.25rem' }}>Search</label>
-                    <input name="q" type="text" className="form-input" placeholder="Search…" defaultValue={sp.q ?? ''} style={{ minWidth: 180 }} />
-                </div>
-                <button type="submit" className="btn btn-secondary" style={{ alignSelf: 'flex-end' }}>Filter</button>
-                <a href="/audit" className="btn btn-secondary" style={{ alignSelf: 'flex-end' }}>Clear</a>
-            </form>
-
-            <Suspense>
-                <DateRangeFilter />
-            </Suspense>
+            {/* Date filter row */}
+            <div style={{ marginBottom: '0.75rem' }}>
+                <Suspense>
+                    <DateDropdownFilter />
+                </Suspense>
+            </div>
 
             <div className="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Date / Time</th>
+                            <th style={{ minWidth: 160 }}>Date / Time</th>
                             <th>User</th>
-                            <th>Entity</th>
-                            <th>Action</th>
+                            <th>
+                                <Suspense fallback="Entity">
+                                    <ColumnFilter column="entity" label="Entity" options={ENTITY_OPTIONS} paramKey="entity" />
+                                </Suspense>
+                            </th>
+                            <th>
+                                <Suspense fallback="Action">
+                                    <ColumnFilter column="action" label="Action" options={ACTION_OPTIONS} paramKey="action" />
+                                </Suspense>
+                            </th>
                             <th>Changes</th>
                         </tr>
                     </thead>
@@ -110,13 +122,14 @@ export default async function AuditLogPage({
                         {logs.length === 0 && (
                             <tr>
                                 <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
-                                    No audit logs match this filter.
+                                    No audit logs match this filter.{' '}
+                                    {hasFilter && <a href="/audit">Clear filters</a>}
                                 </td>
                             </tr>
                         )}
                         {logs.map((log: LogRow) => (
                             <tr key={log.id}>
-                                <td className="text-muted" style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                                <td className="text-muted" style={{ fontSize: '0.8rem', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                     {formatDateTime(log.performedAt)}
                                 </td>
                                 <td style={{ fontWeight: 500, fontSize: '0.85rem' }}>{log.user.name}</td>
@@ -128,7 +141,7 @@ export default async function AuditLogPage({
                                         {log.action}
                                     </span>
                                 </td>
-                                <td style={{ fontSize: '0.78rem', maxWidth: 300 }}>
+                                <td style={{ fontSize: '0.78rem', maxWidth: 320 }}>
                                     {(log.oldValues || log.newValues) && (
                                         <details>
                                             <summary style={{ cursor: 'pointer', color: 'var(--color-muted)' }}>View changes</summary>
@@ -143,6 +156,9 @@ export default async function AuditLogPage({
                                                 </pre>
                                             )}
                                         </details>
+                                    )}
+                                    {!log.oldValues && !log.newValues && (
+                                        <span className="text-muted">—</span>
                                     )}
                                 </td>
                             </tr>

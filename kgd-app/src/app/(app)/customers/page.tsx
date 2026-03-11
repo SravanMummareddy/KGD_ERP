@@ -11,8 +11,13 @@ export default async function CustomersPage() {
 
     const customers = await prisma.customer.findMany({
         where: { isActive: true },
-        include: {
-            contacts: { where: { isPrimary: true }, take: 1 },
+        select: {
+            id: true,
+            name: true,
+            businessName: true,
+            city: true,
+            phone: true,
+            secondaryPhone: true,
             _count: { select: { invoices: true } },
         },
         orderBy: { name: 'asc' },
@@ -28,18 +33,15 @@ export default async function CustomersPage() {
                     <h1 className="page-title">Customers</h1>
                     <p className="text-muted">{customers.length} active customers</p>
                 </div>
-                <Link href="/customers/new" className="btn btn-primary">
-                    + New Customer
-                </Link>
+                <Link href="/customers/new" className="btn btn-primary">+ New Customer</Link>
             </div>
 
             <div className="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Customer Name</th>
-                            <th>City</th>
-                            <th>Primary Contact</th>
+                            <th>Business / Contact</th>
+                            <th>Phone</th>
                             <th>Invoices</th>
                             <th style={{ textAlign: 'right' }}>Outstanding</th>
                             <th>Actions</th>
@@ -48,29 +50,32 @@ export default async function CustomersPage() {
                     <tbody>
                         {customers.length === 0 && (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
                                     No customers yet. <Link href="/customers/new">Add your first customer →</Link>
                                 </td>
                             </tr>
                         )}
                         {customers.map((c: typeof customers[number]) => {
                             const netOutstanding = Number(netOutstandingMap.get(c.id) ?? 0)
-                            const contact = c.contacts[0]
                             return (
                                 <tr key={c.id}>
                                     <td>
-                                        <div style={{ fontWeight: 600 }}>{c.name}</div>
+                                        <div style={{ fontWeight: 600 }}>
+                                            <Link href={`/customers/${c.id}`} style={{ color: 'var(--color-text)', textDecoration: 'none' }}>
+                                                {c.businessName || c.name}
+                                            </Link>
+                                        </div>
                                         {c.businessName && (
-                                            <div className="text-muted" style={{ fontSize: '0.78rem' }}>{c.businessName}</div>
+                                            <div className="text-muted" style={{ fontSize: '0.78rem' }}>Contact: {c.name}</div>
                                         )}
+                                        {c.city && <div className="text-muted" style={{ fontSize: '0.75rem' }}>📍 {c.city}</div>}
                                     </td>
-                                    <td className="text-muted">{c.city || '—'}</td>
                                     <td>
-                                        {contact ? (
+                                        {c.phone ? (
                                             <div>
-                                                <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{contact.name}</div>
-                                                {contact.phone && (
-                                                    <div className="text-muted" style={{ fontSize: '0.78rem' }}>{contact.phone}</div>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{c.phone}</div>
+                                                {c.secondaryPhone && (
+                                                    <div className="text-muted" style={{ fontSize: '0.78rem' }}>{c.secondaryPhone}</div>
                                                 )}
                                             </div>
                                         ) : (
@@ -82,15 +87,16 @@ export default async function CustomersPage() {
                                         {netOutstanding > 0 ? (
                                             <span className="text-money text-danger">{formatCurrency(netOutstanding)}</span>
                                         ) : netOutstanding < 0 ? (
-                                            <span className="text-money text-success">{formatCurrency(netOutstanding)}</span>
+                                            <span className="text-money" style={{ color: 'var(--color-success)' }}>{formatCurrency(Math.abs(netOutstanding))} cr</span>
                                         ) : (
                                             <span className="badge badge-green">Settled</span>
                                         )}
                                     </td>
                                     <td>
-                                        <Link href={`/customers/${c.id}`} className="btn btn-secondary btn-sm">
-                                            View
-                                        </Link>
+                                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                            <Link href={`/customers/${c.id}`} className="btn btn-secondary btn-sm">View</Link>
+                                            <Link href={`/customers/${c.id}/edit`} className="btn btn-secondary btn-sm">Edit</Link>
+                                        </div>
                                     </td>
                                 </tr>
                             )

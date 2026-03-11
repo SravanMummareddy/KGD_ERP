@@ -26,7 +26,11 @@ export default async function InventoryPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Inventory</h1>
+                <div>
+                    <h1 className="page-title">Inventory</h1>
+                    <p className="text-muted">Track raw material stock and movements</p>
+                </div>
+                <Link href="/dashboard" className="btn btn-secondary">← Dashboard</Link>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem', alignItems: 'start' }}>

@@ -3,13 +3,24 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, invoiceStatusInfo } from '@/lib/utils'
-import DateRangeFilter from '@/components/layout/DateRangeFilter'
 import { Suspense } from 'react'
+import ColumnFilter from '@/components/layout/ColumnFilter'
+import DateDropdownFilter from '@/components/layout/DateDropdownFilter'
 
-function getDateRange(range: string|null, from: string|null, to: string|null) {
+const STATUS_OPTIONS = [
+    { value: 'UNPAID', label: 'Unpaid' },
+    { value: 'PARTIAL', label: 'Partial' },
+    { value: 'PAID', label: 'Paid' },
+    { value: 'CANCELLED', label: 'Cancelled' },
+]
+
+function getDateRange(range: string | null, from: string | null, to: string | null) {
     const now = new Date()
-    if (range === 'custom' && from && to) {
+    if (from && to) {
         return { gte: new Date(from), lte: new Date(to + 'T23:59:59') }
+    }
+    if (range === 'month') {
+        return { gte: new Date(now.getFullYear(), now.getMonth(), 1) }
     }
     const days = parseInt(range ?? '0')
     if (!days) return undefined
@@ -22,7 +33,7 @@ function getDateRange(range: string|null, from: string|null, to: string|null) {
 export default async function InvoicesPage({
     searchParams,
 }: {
-    searchParams: Promise<{ range?: string; from?: string; to?: string; status?: string }>
+    searchParams: Promise<{ range?: string; from?: string; to?: string; status?: string | string[]; customer?: string | string[] }>
 }) {
     const session = await auth()
     if (!session?.user) redirect('/login')
@@ -30,15 +41,47 @@ export default async function InvoicesPage({
     const sp = await searchParams
     const dateFilter = getDateRange(sp.range ?? null, sp.from ?? null, sp.to ?? null)
 
+    const statusFilter = sp.status
+        ? (Array.isArray(sp.status) ? sp.status : [sp.status])
+        : []
+    const customerFilter = sp.customer
+        ? (Array.isArray(sp.customer) ? sp.customer : [sp.customer])
+        : []
+
+    // For filter dropdown options
+    const allCustomers = await prisma.customer.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, businessName: true },
+        orderBy: { name: 'asc' },
+    })
+    const customerOptions = allCustomers.map((c: typeof allCustomers[number]) => ({
+        value: c.id,
+        label: c.businessName || c.name,
+    }))
+
     const invoices = await prisma.invoice.findMany({
         include: { customer: true },
         where: {
             ...(dateFilter ? { invoiceDate: dateFilter } : {}),
-            ...(sp.status ? { status: sp.status as 'UNPAID' | 'PARTIAL' | 'PAID' | 'CANCELLED' } : {}),
+            ...(statusFilter.length > 0 ? { status: { in: statusFilter as ('UNPAID' | 'PARTIAL' | 'PAID' | 'CANCELLED')[] } } : {}),
+            ...(customerFilter.length > 0 ? { customerId: { in: customerFilter } } : {}),
         },
         orderBy: { invoiceDate: 'desc' },
-        take: 200,
+        take: 300,
     })
+
+    const currentRange = sp.range ?? ''
+    const currentFrom = sp.from ?? ''
+    const currentTo = sp.to ?? ''
+    const hasActiveFilter = statusFilter.length > 0 || customerFilter.length > 0 || currentRange || currentFrom
+
+    const dateButtons = [
+        { label: 'All time', value: '' },
+        { label: 'Today', value: '1' },
+        { label: '7 days', value: '7' },
+        { label: '30 days', value: '30' },
+        { label: 'This month', value: 'month' },
+    ]
 
     return (
         <>
@@ -50,28 +93,14 @@ export default async function InvoicesPage({
                 <Link href="/invoices/new" className="btn btn-primary">+ New Invoice</Link>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            {/* Date + active filter indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
                 <Suspense>
-                    <DateRangeFilter />
+                    <DateDropdownFilter />
                 </Suspense>
-                <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
-                    {(['', 'UNPAID', 'PARTIAL', 'PAID', 'CANCELLED'] as const).map((s) => {
-                        const labels: Record<string, string> = { '': 'All', UNPAID: 'Unpaid', PARTIAL: 'Partial', PAID: 'Paid', CANCELLED: 'Cancelled' }
-                        const current = sp.status ?? ''
-                        const active = s === current
-                        return (
-                            <Link key={s} href={s ? `/invoices?status=${s}` : '/invoices'}
-                                style={{
-                                    padding: '0.3rem 0.7rem', fontSize: '0.78rem', fontWeight: 500,
-                                    borderRadius: '0.375rem', border: '1px solid var(--color-border)',
-                                    background: active ? 'var(--color-primary)' : 'var(--color-surface)',
-                                    color: active ? 'white' : 'var(--color-text)', textDecoration: 'none',
-                                }}>
-                                {labels[s]}
-                            </Link>
-                        )
-                    })}
-                </div>
+                {hasActiveFilter && (
+                    <Link href="/invoices" style={{ fontSize: '0.78rem', color: 'var(--color-danger)', textDecoration: 'none' }}>✕ Clear all</Link>
+                )}
             </div>
 
             <div className="table-container">
@@ -80,11 +109,19 @@ export default async function InvoicesPage({
                         <tr>
                             <th>Invoice #</th>
                             <th>Date</th>
-                            <th>Customer</th>
+                            <th>
+                                <Suspense fallback="Customer">
+                                    <ColumnFilter column="customer" label="Customer" options={customerOptions} paramKey="customer" />
+                                </Suspense>
+                            </th>
                             <th style={{ textAlign: 'right' }}>Total</th>
                             <th style={{ textAlign: 'right' }}>Paid</th>
                             <th style={{ textAlign: 'right' }}>Balance</th>
-                            <th>Status</th>
+                            <th>
+                                <Suspense fallback="Status">
+                                    <ColumnFilter column="status" label="Status" options={STATUS_OPTIONS} paramKey="status" />
+                                </Suspense>
+                            </th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -92,7 +129,9 @@ export default async function InvoicesPage({
                         {invoices.length === 0 && (
                             <tr>
                                 <td colSpan={8} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
-                                    No invoices found for this filter. <Link href="/invoices/new">Create one →</Link>
+                                    No invoices match this filter.{' '}
+                                    {hasActiveFilter && <Link href="/invoices">Clear filters</Link>}
+                                    {!hasActiveFilter && <Link href="/invoices/new">Create one →</Link>}
                                 </td>
                             </tr>
                         )}
@@ -101,11 +140,13 @@ export default async function InvoicesPage({
                             return (
                                 <tr key={inv.id}>
                                     <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                                        {inv.invoiceNumber}
+                                        <Link href={`/invoices/${inv.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                                            {inv.invoiceNumber}
+                                        </Link>
                                     </td>
-                                    <td className="text-muted">{formatDate(inv.invoiceDate)}</td>
+                                    <td className="text-muted" style={{ whiteSpace: 'nowrap' }}>{formatDate(inv.invoiceDate)}</td>
                                     <td>
-                                        <Link href={`/customers/${inv.customerId}`} style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500 }}>
+                                        <Link href={`/customers/${inv.customerId}`} style={{ color: 'var(--color-text)', textDecoration: 'none', fontWeight: 500 }}>
                                             {inv.customer.businessName || inv.customer.name}
                                         </Link>
                                         {inv.customer.businessName && (

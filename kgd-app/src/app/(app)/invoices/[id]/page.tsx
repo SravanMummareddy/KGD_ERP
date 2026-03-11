@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, formatDateTime, invoiceStatusInfo, paymentMethodLabel } from '@/lib/utils'
 import CancelInvoiceButton from '@/components/invoices/CancelInvoiceButton'
+import { getCustomerOutstandingSummaries } from '@/lib/outstanding'
 
 export default async function InvoiceDetailPage({
     params,
@@ -34,6 +35,9 @@ export default async function InvoiceDetailPage({
 
     const info = invoiceStatusInfo(invoice.status)
     const primaryContact = invoice.customer.contacts[0]
+
+    const outstanding = await getCustomerOutstandingSummaries([invoice.customerId])
+    const customerNetOutstanding = outstanding[0]?.netOutstanding ?? 0
 
     return (
         <>
@@ -95,6 +99,12 @@ export default async function InvoiceDetailPage({
                             <div>
                                 <div className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Created By</div>
                                 <div style={{ fontWeight: 500 }}>{invoice.createdBy.name}</div>
+                            </div>
+                            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                                <div className="text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Customer Outstanding</div>
+                                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: Number(customerNetOutstanding) > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                                    {Number(customerNetOutstanding) > 0 ? formatCurrency(customerNetOutstanding) : (Number(customerNetOutstanding) < 0 ? `${formatCurrency(Math.abs(Number(customerNetOutstanding)))} Cr` : 'Settled')}
+                                </div>
                             </div>
                         </div>
 
