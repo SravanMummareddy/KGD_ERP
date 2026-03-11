@@ -198,76 +198,96 @@ async function main() {
         createdInvoices.push({ ...inv, _currentBalance: totalAmount })
     }
 
-    // --- 7. Payments & Allocations (approx 120 payments) ---
-    // We iterate chronologically to pay off invoices.
-    
-    // Shuffle the invoices to create scattered payments
+    // --- 7. Payments & Allocations (approx 100 payments) ---
     const payments = []
     
-    for(let i=0; i < 120; i++) {
-        // Find an invoice that needs paying
-        const unpaidInv = createdInvoices.find(inv => inv._currentBalance > 0)
-        if (!unpaidInv) break // All invoices paid!
+    // First, let's process the invoices one by one to guarantee exact distribution.
+    for (const unpaidInv of createdInvoices) {
+        // 15% chance to remain completely UNPAID
+        if (Math.random() < 0.15) continue;
 
-        const paymentDate = addDays(new Date(unpaidInv.invoiceDate), randomInt(1, 20))
+        // Otherwise, it gets paid.
+        // 30% chance of ending up PARTIAL, 70% chance of being PAID.
+        const willBePartial = Math.random() < 0.30;
         
-        // Occasionally partial payment, mostly full payment
-        const isPartial = Math.random() > 0.7
-        const payAmt = isPartial ? Math.floor(unpaidInv._currentBalance / 2) : unpaidInv._currentBalance
-
-        const payment = await prisma.payment.create({
-            data: {
-                customerId: unpaidInv.customerId,
-                amount: payAmt,
-                paymentDate: paymentDate,
-                method: randomItem(['UPI', 'CASH', 'BANK_TRANSFER', 'CHEQUE']),
-                reference: `REF-${Math.floor(Math.random()*100000)}`,
-                createdById: randomItem(users).id,
+        let targetPayAmt = willBePartial 
+            ? Math.floor((unpaidInv._currentBalance * randomInt(30, 80)) / 100)
+            : unpaidInv._currentBalance;
+            
+        // Split this target amount into 1 or 2 payments
+        let numPayments = randomInt(1, 2);
+        
+        // If it's a small amount, just do 1 payment
+        if (targetPayAmt < 1000) numPayments = 1;
+        
+        let amountLeftToGenerate = targetPayAmt;
+        
+        for (let p = 0; p < numPayments; p++) {
+            let payAmt = 0;
+            if (p === numPayments - 1) {
+                payAmt = amountLeftToGenerate; // Final payment covers the rest
+            } else {
+                payAmt = Math.floor(amountLeftToGenerate / 2); // First payment is roughly half
+                amountLeftToGenerate -= payAmt;
             }
-        })
-        payments.push(payment)
-
-        // Allocate
-        await prisma.paymentAllocation.create({
-            data: {
-                paymentId: payment.id,
-                invoiceId: unpaidInv.id,
-                amount: payAmt
-            }
-        })
-        
-        unpaidInv._currentBalance -= payAmt
-        
-        const newPaid = Number(unpaidInv.paidAmount) + payAmt
-        const newBalance = unpaidInv._currentBalance
-        
-        // Update local object forcefully for next iteration
-        unpaidInv.paidAmount = newPaid as any
-        unpaidInv.balanceDue = newBalance as any
-        
-        let newStatus: 'PAID' | 'PARTIAL' | 'UNPAID' = 'UNPAID'
-        if (newBalance === 0) newStatus = 'PAID'
-        else if (newPaid > 0) newStatus = 'PARTIAL'
-
-        await prisma.invoice.update({
-            where: { id: unpaidInv.id },
-            data: {
-                paidAmount: newPaid,
-                balanceDue: newBalance,
-                status: newStatus
-            }
-        })
+            
+            if (payAmt <= 0) continue;
+            
+            const paymentDate = addDays(new Date(unpaidInv.invoiceDate), randomInt(1, 25));
+            
+            const payment = await prisma.payment.create({
+                data: {
+                    customerId: unpaidInv.customerId,
+                    amount: payAmt,
+                    paymentDate: paymentDate,
+                    method: randomItem(['UPI', 'CASH', 'BANK_TRANSFER', 'CHEQUE']),
+                    reference: `REF-${Math.floor(Math.random()*100000)}`,
+                    createdById: randomItem(users).id,
+                }
+            });
+            payments.push(payment);
+            
+            // Allocate
+            await prisma.paymentAllocation.create({
+                data: {
+                    paymentId: payment.id,
+                    invoiceId: unpaidInv.id,
+                    amount: payAmt
+                }
+            });
+            
+            unpaidInv._currentBalance -= payAmt;
+            const newPaid = Number(unpaidInv.paidAmount) + payAmt;
+            const newBalance = unpaidInv._currentBalance;
+            
+            // Update local object forcefully for next iteration
+            unpaidInv.paidAmount = newPaid as any;
+            unpaidInv.balanceDue = newBalance as any;
+            
+            let newStatus: 'PAID' | 'PARTIAL' | 'UNPAID' = 'UNPAID';
+            if (newBalance <= 0) newStatus = 'PAID';
+            else if (newPaid > 0) newStatus = 'PARTIAL';
+            
+            await prisma.invoice.update({
+                where: { id: unpaidInv.id },
+                data: {
+                    paidAmount: newPaid,
+                    balanceDue: newBalance,
+                    status: newStatus
+                }
+            });
+        }
     }
 
     // Add some standalone unused payments (cash advances / extra credit)
-    for(let i=0; i < 10; i++) {
+    for(let i=0; i < 20; i++) {
         const c = randomItem(createdCustomers)
         await prisma.payment.create({
             data: {
                 customerId: c.id,
-                amount: randomInt(1, 10) * 1000,
+                amount: randomInt(2, 25) * 1000,
                 paymentDate: randomDate('2025-10-01T08:00:00.000Z', '2026-03-25T18:00:00.000Z'),
-                method: 'CASH',
+                method: randomItem(['CASH', 'UPI', 'BANK_TRANSFER']),
                 createdById: staff.id,
             }
         })

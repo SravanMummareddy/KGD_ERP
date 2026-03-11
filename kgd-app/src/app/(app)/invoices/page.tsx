@@ -107,6 +107,7 @@ export default async function InvoicesPage({
                 <table>
                     <thead>
                         <tr>
+                            <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
                             <th>Invoice #</th>
                             <th>Date</th>
                             <th>
@@ -128,17 +129,18 @@ export default async function InvoicesPage({
                     <tbody>
                         {invoices.length === 0 && (
                             <tr>
-                                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
+                                <td colSpan={9} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
                                     No invoices match this filter.{' '}
                                     {hasActiveFilter && <Link href="/invoices">Clear filters</Link>}
                                     {!hasActiveFilter && <Link href="/invoices/new">Create one →</Link>}
                                 </td>
                             </tr>
                         )}
-                        {invoices.map((inv: typeof invoices[number]) => {
+                        {invoices.map((inv: typeof invoices[number], i: number) => {
                             const info = invoiceStatusInfo(inv.status)
                             return (
                                 <tr key={inv.id}>
+                                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{i + 1}</td>
                                     <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>
                                         <Link href={`/invoices/${inv.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
                                             {inv.invoiceNumber}
