@@ -14,7 +14,13 @@ export default auth(function middleware(req: NextRequest & { auth: unknown }) {
 
     // If not logged in, redirect to login
     if (!session?.user) {
-        return NextResponse.redirect(new URL('/login', req.url))
+        // In Vercel, req.url can sometimes unexpectedly retain a localhost or internal IP reference.
+        // We explicitly derive the host from x-forwarded-host to be extremely safe.
+        const host = req.headers.get('x-forwarded-host') || req.nextUrl.host
+        const protocol = req.headers.get('x-forwarded-proto') || 'https'
+        const baseUrl = host.includes('localhost') ? `http://${host}` : `${protocol}://${host}`
+        
+        return NextResponse.redirect(new URL('/login', baseUrl))
     }
 
     return NextResponse.next()
