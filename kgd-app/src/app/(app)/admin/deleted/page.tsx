@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+﻿import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -41,7 +41,9 @@ export default async function DeletedItemsPage({
         }),
     ])
 
-    const userMap = new Map(deletedByUsers.map((u: { id: string; name: string }) => [u.id, u.name]))
+    const userMap = new Map<string, string | null>(
+        deletedByUsers.map((u: { id: string; name: string | null }) => [u.id, u.name]),
+    )
 
     const tabs = [
         { key: 'customers', label: 'Customers', count: deletedCustomers.length },
@@ -131,12 +133,12 @@ export default async function DeletedItemsPage({
                                         <div style={{ fontWeight: 600 }}>{c.businessName || c.name}</div>
                                         {c.businessName && <div className="text-muted text-xs">{c.name}</div>}
                                     </td>
-                                    <td className="text-muted">{c.city || '—'}</td>
+                                    <td className="text-muted">{c.city || 'â€”'}</td>
                                     <td className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                        {getDeletedField(c, 'deletedAt') ? formatDateTime(getDeletedField(c, 'deletedAt')) : '—'}
+                                        {getDeletedField(c, 'deletedAt') ? formatDateTime(getDeletedField(c, 'deletedAt')) : 'â€”'}
                                     </td>
                                     <td className="text-muted" style={{ fontSize: '0.82rem' }}>
-                                        {getDeletedField(c, 'deletedById') ? (userMap.get(getDeletedField(c, 'deletedById')) ?? 'Unknown') : '—'}
+                                        {c.deletedById ? (userMap.get(c.deletedById) ?? 'Unknown') : 'â€”'}
                                     </td>
                                     <td>
                                         <div className="row-actions">
@@ -196,13 +198,13 @@ export default async function DeletedItemsPage({
                                         <span className="badge badge-gray">{p.type}</span>
                                     </td>
                                     <td className="text-muted" style={{ fontSize: '0.82rem' }}>
-                                        {p.sizeInches ? `${p.sizeInches}"` : '—'} {p.gsm ? `/ ${p.gsm} GSM` : ''}
+                                        {p.sizeInches ? `${p.sizeInches}"` : 'â€”'} {p.gsm ? `/ ${p.gsm} GSM` : ''}
                                     </td>
                                     <td className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                        {getDeletedField(p, 'deletedAt') ? formatDateTime(getDeletedField(p, 'deletedAt')) : '—'}
+                                        {getDeletedField(p, 'deletedAt') ? formatDateTime(getDeletedField(p, 'deletedAt')) : 'â€”'}
                                     </td>
                                     <td className="text-muted" style={{ fontSize: '0.82rem' }}>
-                                        {getDeletedField(p, 'deletedById') ? (userMap.get(getDeletedField(p, 'deletedById')) ?? 'Unknown') : '—'}
+                                        {p.deletedById ? (userMap.get(p.deletedById) ?? 'Unknown') : 'â€”'}
                                     </td>
                                     <td>
                                         <div className="row-actions">
@@ -265,10 +267,10 @@ export default async function DeletedItemsPage({
                                         {Number(item.currentStock).toFixed(2)} {item.unit}
                                     </td>
                                     <td className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                        {getDeletedField(item, 'deletedAt') ? formatDateTime(getDeletedField(item, 'deletedAt')) : '—'}
+                                        {getDeletedField(item, 'deletedAt') ? formatDateTime(getDeletedField(item, 'deletedAt')) : 'â€”'}
                                     </td>
                                     <td className="text-muted" style={{ fontSize: '0.82rem' }}>
-                                        {getDeletedField(item, 'deletedById') ? (userMap.get(getDeletedField(item, 'deletedById')) ?? 'Unknown') : '—'}
+                                        {item.deletedById ? (userMap.get(item.deletedById) ?? 'Unknown') : 'â€”'}
                                     </td>
                                     <td>
                                         <div className="row-actions">
@@ -292,3 +294,4 @@ export default async function DeletedItemsPage({
         </div>
     )
 }
+
