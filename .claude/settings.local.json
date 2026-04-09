@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"c:\\\\Users\\\\smummare\\\\OneDrive - Arizona State University\\\\From Lumin - sort them\\\\Documents\\\\projects\\\\KGD_ACCOUNT_TRACKING\\\\kgd-app/src/app/\\(app\\)\")",
+      "Bash(npx prisma:*)",
+      "Bash(grep -rn \"from ''@/components/ui/SearchInput''\" \"c:\\\\Users\\\\smummare\\\\OneDrive - Arizona State University\\\\From Lumin - sort them\\\\Documents\\\\projects\\\\KGD_ACCOUNT_TRACKING\\\\kgd-app\\\\src\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(python -c \":*)"
+    ]
+  }
+}

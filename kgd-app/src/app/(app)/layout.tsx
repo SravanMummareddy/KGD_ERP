@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
+import ToastProvider from '@/components/ui/ToastProvider'
 
 export default async function AppLayout({
     children,
@@ -16,12 +17,14 @@ export default async function AppLayout({
     return (
         <div className="app-shell">
             <Sidebar
-                userName={session.user.name}
+                userName={session.user.name ?? 'User'}
                 userRole={session.user.role}
             />
             <div className="main-content">
                 <div className="page-content">
-                    {children}
+                    <ToastProvider>
+                        {children}
+                    </ToastProvider>
                 </div>
             </div>
         </div>

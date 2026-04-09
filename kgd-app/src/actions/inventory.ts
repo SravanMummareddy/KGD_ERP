@@ -21,6 +21,89 @@ export async function addInventoryItem(formData: FormData): Promise<void> {
     revalidatePath('/inventory')
 }
 
+// ─── Delete Inventory Item (soft delete) ──────────────────────────
+
+export async function deleteInventoryItem(itemId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    const old = await prisma.inventoryItem.findUnique({ where: { id: itemId } })
+    if (!old) return { error: 'Item not found' }
+
+    try {
+        await prisma.inventoryItem.update({
+            where: { id: itemId },
+            data: { isActive: false, deletedAt: new Date(), deletedById: session.user.id } as object,
+        })
+    } catch {
+        await prisma.inventoryItem.update({ where: { id: itemId }, data: { isActive: false } })
+    }
+
+    await writeAuditLog({
+        entity: 'Inventory', entityId: itemId, action: 'DELETE',
+        performedBy: session.user.id,
+        oldValues: { name: old.name, category: old.category, currentStock: old.currentStock.toString() },
+        newValues: { isActive: false, deletedAt: new Date().toISOString() },
+    })
+
+    revalidatePath('/inventory')
+    revalidatePath('/admin/deleted')
+    return {}
+}
+
+// ─── Restore Inventory Item ────────────────────────────────────────
+
+export async function restoreInventoryItem(itemId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } })
+    if (!item) return { error: 'Item not found' }
+
+    try {
+        await prisma.inventoryItem.update({
+            where: { id: itemId },
+            data: { isActive: true, deletedAt: null, deletedById: null } as object,
+        })
+    } catch {
+        await prisma.inventoryItem.update({ where: { id: itemId }, data: { isActive: true } })
+    }
+
+    await writeAuditLog({
+        entity: 'Inventory', entityId: itemId, action: 'RESTORE',
+        performedBy: session.user.id,
+        newValues: { name: item.name, restoredAt: new Date().toISOString() },
+    })
+
+    revalidatePath('/inventory')
+    revalidatePath('/admin/deleted')
+    return {}
+}
+
+// ─── Permanent Delete Inventory Item (ADMIN only) ─────────────────
+
+export async function permanentDeleteInventoryItem(itemId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } })
+    if (!item) return { error: 'Item not found' }
+
+    await writeAuditLog({
+        entity: 'Inventory', entityId: itemId, action: 'DELETE',
+        performedBy: session.user.id,
+        oldValues: { name: item.name, category: item.category, permanentDelete: true },
+    })
+
+    // Delete transactions first (no cascade configured in schema)
+    await prisma.inventoryTransaction.deleteMany({ where: { inventoryItemId: itemId } })
+    await prisma.inventoryItem.delete({ where: { id: itemId } })
+
+    revalidatePath('/inventory')
+    revalidatePath('/admin/deleted')
+    return {}
+}
+
 export async function addInventoryTransaction(formData: FormData): Promise<void> {
     const session = await auth()
     if (!session?.user) redirect('/login')

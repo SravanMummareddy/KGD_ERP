@@ -90,6 +90,10 @@ model Customer {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  // Soft delete
+  deletedAt   DateTime?
+  deletedById String?
+
   // Relations
   contacts  CustomerContact[]
   invoices  Invoice[]
@@ -132,6 +136,8 @@ model Product {
   description String?
   stockPieces Int         @default(0) // Tracks the raw number of finished pieces (e.g., plates)
   isActive    Boolean     @default(true)
+  deletedAt   DateTime?
+  deletedById String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -239,6 +245,8 @@ model InventoryItem {
   currentStock Decimal  @db.Decimal(12, 3)  // manually maintained
   notes        String?
   isActive     Boolean  @default(true)
+  deletedAt    DateTime?
+  deletedById  String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

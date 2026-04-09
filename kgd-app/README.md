@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KGD Account Tracking
+
+Paper plate factory management system — digitizes customer records, invoicing, payments, and inventory tracking for a manufacturing business.
+
+## Tech Stack
+
+- **Frontend**: Next.js 16 (App Router), React 19, Custom CSS design system + Tailwind CSS 4
+- **Backend**: Next.js Server Actions
+- **Database**: PostgreSQL (Neon Serverless), Prisma 6
+- **Auth**: next-auth v5 (cookie-session)
+- **Testing**: Playwright (e2e)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Configure DATABASE_URL and AUTH_SECRET in .env (see .env.example)
+
+# Run database migrations
+npx prisma migrate dev --name init
+
+# Seed sample data (optional)
+npm run db:seed
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Available Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npx prisma migrate dev --name <name>` | Create and apply migration |
+| `npx prisma studio` | Open Prisma database browser |
+| `npm run db:seed` | Seed sample data |
+| `npm run test:e2e` | Run Playwright tests |
+| `npm run test:e2e:ui` | Playwright tests in UI mode |
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/
+│   ├── (app)/              # Protected routes (with sidebar)
+│   │   ├── dashboard/
+│   │   ├── customers/
+│   │   ├── products/
+│   │   ├── invoices/
+│   │   ├── payments/
+│   │   ├── inventory/
+│   │   ├── admin/          # ADMIN ONLY: users, deleted items
+│   │   └── audit/          # ADMIN ONLY: audit log
+│   ├── login/              # Authentication
+│   └── print/              # Print-friendly invoice pages
+├── actions/                # Server Actions (mutations)
+│   ├── customers.ts        # create, update, delete (soft), restore
+│   ├── products.ts         # create, update, adjustStock, delete (soft), restore
+│   ├── invoices.ts         # create, cancel
+│   ├── payments.ts         # record, update
+│   ├── inventory.ts        # addItem, addTransaction, delete (soft), restore
+│   └── users.ts            # createUser, updateUser, toggleActive (ADMIN)
+├── components/
+│   ├── layout/             # Sidebar, filters
+│   └── ui/                 # Pagination, Toast, ConfirmModal
+└── lib/                    # Utilities (auth, prisma, audit)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Key Patterns
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Server Actions**: All mutations in `src/actions/` — always call `auth()`, always `logAudit()`, always `revalidatePath()`
+- **Server Rendering**: No client-side caching — use `revalidatePath()` after mutations
+- **Validation**: Zod for server-side form validation
+- **Audit**: All data changes logged to AuditLog with before/after snapshots
+- **Soft Delete**: Customers, Products, and InventoryItems use soft delete (`isActive=false`, `deletedAt`, `deletedById`) — never hard deleted
+- **Recycle Bin**: Admin-only `/admin/deleted` to view and restore soft-deleted records
+- **Toasts**: All user feedback via toast system — never `alert()`
 
-## Deploy on Vercel
+## Role-Based Access
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Feature | STAFF | ADMIN |
+|---------|-------|-------|
+| Dashboard, Customers, Invoices, Payments, Products, Inventory | ✅ | ✅ |
+| Audit Log | ❌ | ✅ |
+| User Management | ❌ | ✅ |
+| Recycle Bin / Restore | ❌ | ✅ |
+| Permanent Delete | ❌ | ✅ |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Database
+
+Schema defined in `prisma/schema.prisma`. Key models:
+
+| Model | Purpose |
+|-------|---------|
+| User | System users (ADMIN/STAFF, active/inactive) |
+| Customer | Business customers with soft-delete support |
+| CustomerContact | Multiple contacts per customer |
+| Product | Finished goods (Plates/Sheets) with stock tracking |
+| Invoice | Sales documents (never deleted, only cancelled) |
+| InvoiceItem | Line items |
+| Payment | Customer payments (never deleted) |
+| PaymentAllocation | Split payment mapping |
+| InventoryItem | Raw materials with soft-delete support |
+| InventoryTransaction | Stock movement history |
+| AuditLog | Full change history |
+
+## Soft Delete Rules
+
+- **Customer**: Cannot delete if outstanding invoices (unpaid balance > 0)
+- **Product**: Cannot delete if appears in unpaid invoice line items
+- **InventoryItem**: Can always be soft-deleted (history preserved)
+- **Invoice**: Never deleted — CANCELLED status used instead
+- **Payment**: Never deleted — corrected via edit flow
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `AUTH_SECRET` | next-auth session secret (`openssl rand -hex 32`) |

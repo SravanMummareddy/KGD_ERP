@@ -7,6 +7,7 @@ import { Suspense } from 'react'
 import ColumnFilter from '@/components/layout/ColumnFilter'
 import DateDropdownFilter from '@/components/layout/DateDropdownFilter'
 import Pagination from '@/components/ui/Pagination'
+import SearchInput from '@/components/ui/SearchInput'
 
 const STATUS_OPTIONS = [
     { value: 'UNPAID', label: 'Unpaid' },
@@ -34,13 +35,14 @@ function getDateRange(range: string | null, from: string | null, to: string | nu
 export default async function InvoicesPage({
     searchParams,
 }: {
-    searchParams: Promise<{ range?: string; from?: string; to?: string; status?: string | string[]; customer?: string | string[]; page?: string }>
+    searchParams: Promise<{ range?: string; from?: string; to?: string; status?: string | string[]; customer?: string | string[]; page?: string; q?: string }>
 }) {
     const session = await auth()
     if (!session?.user) redirect('/login')
 
     const sp = await searchParams
     const dateFilter = getDateRange(sp.range ?? null, sp.from ?? null, sp.to ?? null)
+    const q = sp.q?.trim() ?? ''
 
     const statusFilter = sp.status
         ? (Array.isArray(sp.status) ? sp.status : [sp.status])
@@ -49,7 +51,6 @@ export default async function InvoicesPage({
         ? (Array.isArray(sp.customer) ? sp.customer : [sp.customer])
         : []
 
-    // For filter dropdown options
     const allCustomers = await prisma.customer.findMany({
         where: { isActive: true },
         select: { id: true, name: true, businessName: true },
@@ -63,10 +64,19 @@ export default async function InvoicesPage({
     const currentPage = Number(sp.page) || 1
     const ITEMS_PER_PAGE = 10
 
+    const searchFilter = q ? {
+        OR: [
+            { invoiceNumber: { contains: q, mode: 'insensitive' as const } },
+            { customer: { name: { contains: q, mode: 'insensitive' as const } } },
+            { customer: { businessName: { contains: q, mode: 'insensitive' as const } } },
+        ],
+    } : {}
+
     const whereClause = {
         ...(dateFilter ? { invoiceDate: dateFilter } : {}),
         ...(statusFilter.length > 0 ? { status: { in: statusFilter as ('UNPAID' | 'PARTIAL' | 'PAID' | 'CANCELLED')[] } } : {}),
         ...(customerFilter.length > 0 ? { customerId: { in: customerFilter } } : {}),
+        ...searchFilter,
     }
 
     const totalInvoices = await prisma.invoice.count({ where: whereClause })
@@ -82,34 +92,38 @@ export default async function InvoicesPage({
 
     const currentRange = sp.range ?? ''
     const currentFrom = sp.from ?? ''
-    const currentTo = sp.to ?? ''
-    const hasActiveFilter = statusFilter.length > 0 || customerFilter.length > 0 || currentRange || currentFrom
-
-    const dateButtons = [
-        { label: 'All time', value: '' },
-        { label: 'Today', value: '1' },
-        { label: '7 days', value: '7' },
-        { label: '30 days', value: '30' },
-        { label: 'This month', value: 'month' },
-    ]
+    const hasActiveFilter = statusFilter.length > 0 || customerFilter.length > 0 || currentRange || currentFrom || q
 
     return (
-        <>
+        <div className="page-fade-in">
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Invoices</h1>
-                    <p className="text-muted">{totalInvoices} invoices total</p>
+                    <p className="page-subtitle">{totalInvoices} invoices total</p>
                 </div>
-                <Link href="/invoices/new" className="btn btn-primary">+ New Invoice</Link>
+                <Link href="/invoices/new" className="btn btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem' }}>
+                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    New Invoice
+                </Link>
             </div>
 
-            {/* Date + active filter indicator */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Filter toolbar */}
+            <div className="filter-toolbar">
+                <Suspense>
+                    <SearchInput placeholder="Search invoice #, customer…" />
+                </Suspense>
                 <Suspense>
                     <DateDropdownFilter />
                 </Suspense>
                 {hasActiveFilter && (
-                    <Link href="/invoices" style={{ fontSize: '0.78rem', color: 'var(--color-danger)', textDecoration: 'none' }}>✕ Clear all</Link>
+                    <Link href="/invoices" className="clear-filter-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.75rem', height: '0.75rem' }}>
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                        Clear filters
+                    </Link>
                 )}
             </div>
 
@@ -117,7 +131,7 @@ export default async function InvoicesPage({
                 <table>
                     <thead>
                         <tr>
-                            <th style={{ width: '40px', color: 'var(--color-muted)' }}>#</th>
+                            <th style={{ width: '44px' }}>#</th>
                             <th>Invoice #</th>
                             <th>Date</th>
                             <th>
@@ -133,16 +147,29 @@ export default async function InvoicesPage({
                                     <ColumnFilter column="status" label="Status" options={STATUS_OPTIONS} paramKey="status" />
                                 </Suspense>
                             </th>
-                            <th>Actions</th>
+                            <th style={{ width: '80px' }}>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {invoices.length === 0 && (
                             <tr>
-                                <td colSpan={9} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
-                                    No invoices match this filter.{' '}
-                                    {hasActiveFilter && <Link href="/invoices">Clear filters</Link>}
-                                    {!hasActiveFilter && <Link href="/invoices/new">Create one →</Link>}
+                                <td colSpan={9}>
+                                    <div className="empty-state">
+                                        <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <polyline points="14 2 14 8 20 8" />
+                                            <line x1="16" y1="13" x2="8" y2="13" />
+                                            <line x1="16" y1="17" x2="8" y2="17" />
+                                        </svg>
+                                        <p className="empty-state-title">No invoices found</p>
+                                        <p className="empty-state-desc">
+                                            {hasActiveFilter ? 'No invoices match your current filters.' : 'Create your first invoice to get started.'}
+                                        </p>
+                                        {hasActiveFilter
+                                            ? <Link href="/invoices" className="btn btn-secondary btn-sm" style={{ marginTop: '0.5rem' }}>Clear Filters</Link>
+                                            : <Link href="/invoices/new" className="btn btn-primary btn-sm" style={{ marginTop: '0.5rem' }}>New Invoice</Link>
+                                        }
+                                    </div>
                                 </td>
                             </tr>
                         )}
@@ -151,29 +178,29 @@ export default async function InvoicesPage({
                             const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
                             return (
                                 <tr key={inv.id}>
-                                    <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
-                                    <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                                        <Link href={`/invoices/${inv.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                                    <td className="text-muted text-xs">{serialNumber}</td>
+                                    <td>
+                                        <Link href={`/invoices/${inv.id}`} style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--color-primary)', textDecoration: 'none' }}>
                                             {inv.invoiceNumber}
                                         </Link>
                                     </td>
-                                    <td className="text-muted" style={{ whiteSpace: 'nowrap' }}>{formatDate(inv.invoiceDate)}</td>
+                                    <td className="text-muted" style={{ whiteSpace: 'nowrap', fontSize: '0.82rem' }}>{formatDate(inv.invoiceDate)}</td>
                                     <td>
                                         <Link href={`/customers/${inv.customerId}`} style={{ color: 'var(--color-text)', textDecoration: 'none', fontWeight: 500 }}>
                                             {inv.customer.businessName || inv.customer.name}
                                         </Link>
                                         {inv.customer.businessName && (
-                                            <div className="text-muted" style={{ fontSize: '0.75rem' }}>{inv.customer.name}</div>
+                                            <div className="text-muted text-xs">{inv.customer.name}</div>
                                         )}
                                     </td>
                                     <td style={{ textAlign: 'right' }} className="text-money">{formatCurrency(inv.totalAmount)}</td>
                                     <td style={{ textAlign: 'right', color: 'var(--color-success)' }} className="text-money">
-                                        {Number(inv.paidAmount) > 0 ? formatCurrency(inv.paidAmount) : '—'}
+                                        {Number(inv.paidAmount) > 0 ? formatCurrency(inv.paidAmount) : <span className="text-muted">—</span>}
                                     </td>
                                     <td style={{ textAlign: 'right' }} className="text-money">
                                         {Number(inv.balanceDue) > 0
                                             ? <span className="text-danger">{formatCurrency(inv.balanceDue)}</span>
-                                            : '—'}
+                                            : <span className="text-muted">—</span>}
                                     </td>
                                     <td><span className={`badge ${info.color}`}>{info.label}</span></td>
                                     <td>
@@ -187,6 +214,6 @@ export default async function InvoicesPage({
             </div>
 
             <Pagination totalPages={totalPages} currentPage={currentPage} />
-        </>
+        </div>
     )
 }

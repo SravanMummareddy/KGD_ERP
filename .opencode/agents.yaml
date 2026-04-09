@@ -1,0 +1,42 @@
+# OpenCode Agent Configuration for KGD Account Tracking
+# This file helps the OpenCode agent understand and work with this Next.js + Prisma project
+
+agents:
+  build:
+    description: "Build agent for KGD Account Tracking - Full-stack Next.js app with Prisma"
+    prompt: |
+      You are working on KGD Account Tracking, a paper plate factory management system.
+      
+      Tech Stack:
+      - Next.js 16 (App Router), React 19, Tailwind CSS 4
+      - Prisma 6 with PostgreSQL (Neon)
+      - next-auth v5 for authentication
+      - Server Actions for all mutations
+      - Playwright for e2e testing
+      
+      Key Patterns:
+      - All data fetching is server-side (no client-side caching)
+      - Use revalidatePath() after mutations to refresh data
+      - All forms use Zod for server-side validation
+      - Audit logging for all data changes
+      - Use Decimal type for money (never Float)
+      
+      Project Structure:
+      - kgd-app/src/actions/ - Server Actions
+      - kgd-app/src/app/(app)/ - Protected routes with sidebar
+      - kgd-app/prisma/schema.prisma - Database schema
+      - kgd-app/e2e/ - Playwright tests
+      
+      Important Notes:
+      - Always use Prisma, never raw SQL
+      - When editing schema, run migration: npx prisma migrate dev
+      - For tests: npm run test:e2e
+      
+      Database models: User, Customer, CustomerContact, Product, Invoice, InvoiceItem, Payment, PaymentAllocation, InventoryItem, InventoryTransaction, AuditLog
+  
+  plan:
+    description: "Plan agent for KGD Account Tracking - Analyze and plan without making changes"
+    mode: "primary"
+    permission:
+      edit: "deny"
+      bash: "deny"

@@ -170,24 +170,100 @@ export async function deleteContact(contactId: string, customerId: string): Prom
     revalidatePath(`/customers/${customerId}`)
 }
 
-// ─── Deactivate Customer (soft delete) ───────────────────────────
+// ─── Delete Customer (soft delete) ───────────────────────────────
 
-export async function deactivateCustomer(customerId: string): Promise<void> {
+export async function deleteCustomer(customerId: string): Promise<{ error?: string }> {
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') throw new Error('Not authorized')
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
 
-    await prisma.customer.update({
-        where: { id: customerId },
-        data: { isActive: false },
+    // Business rule: block delete if customer has outstanding invoices
+    const unpaidCount = await prisma.invoice.count({
+        where: { customerId, status: { in: ['UNPAID', 'PARTIAL'] } },
     })
+    if (unpaidCount > 0) {
+        return { error: `Cannot delete: customer has ${unpaidCount} unpaid invoice(s). Settle all invoices first.` }
+    }
+
+    const old = await prisma.customer.findUnique({ where: { id: customerId } })
+
+    try {
+        await prisma.customer.update({
+            where: { id: customerId },
+            data: { isActive: false, deletedAt: new Date(), deletedById: session.user.id } as object,
+        })
+    } catch {
+        // Prisma client not regenerated yet — fall back to just isActive
+        await prisma.customer.update({ where: { id: customerId }, data: { isActive: false } })
+    }
 
     await writeAuditLog({
         entity: 'Customer', entityId: customerId, action: 'DELETE',
         performedBy: session.user.id,
-        newValues: { isActive: false },
+        oldValues: { name: old?.name, businessName: old?.businessName },
+        newValues: { isActive: false, deletedAt: new Date().toISOString() },
     })
 
     revalidatePath('/customers')
     revalidatePath('/dashboard')
-    redirect('/customers')
+    revalidatePath('/admin/deleted')
+    return {}
+}
+
+// ─── Restore Customer ─────────────────────────────────────────────
+
+export async function restoreCustomer(customerId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+    if (!customer) return { error: 'Customer not found' }
+
+    try {
+        await prisma.customer.update({
+            where: { id: customerId },
+            data: { isActive: true, deletedAt: null, deletedById: null } as object,
+        })
+    } catch {
+        await prisma.customer.update({ where: { id: customerId }, data: { isActive: true } })
+    }
+
+    await writeAuditLog({
+        entity: 'Customer', entityId: customerId, action: 'RESTORE',
+        performedBy: session.user.id,
+        newValues: { name: customer.name, businessName: customer.businessName, restoredAt: new Date().toISOString() },
+    })
+
+    revalidatePath('/customers')
+    revalidatePath('/admin/deleted')
+    revalidatePath('/dashboard')
+    return {}
+}
+
+// ─── Permanent Delete Customer (ADMIN only) ───────────────────────
+
+export async function permanentDeleteCustomer(customerId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        include: { invoices: { take: 1 }, payments: { take: 1 } },
+    })
+    if (!customer) return { error: 'Customer not found' }
+    if (customer.invoices.length > 0 || customer.payments.length > 0) {
+        return { error: 'Cannot permanently delete: customer has financial records. Use soft delete instead.' }
+    }
+
+    await writeAuditLog({
+        entity: 'Customer', entityId: customerId, action: 'DELETE',
+        performedBy: session.user.id,
+        oldValues: { name: customer.name, businessName: customer.businessName, permanentDelete: true },
+    })
+
+    await prisma.customer.delete({ where: { id: customerId } })
+
+    revalidatePath('/customers')
+    revalidatePath('/admin/deleted')
+    revalidatePath('/dashboard')
+    return {}
 }

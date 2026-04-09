@@ -92,19 +92,19 @@ export default async function AuditLogPage({
     const hasFilter = entityFilter.length > 0 || actionFilter.length > 0 || sp.range || sp.from
 
     return (
-        <>
+        <div className="page-fade-in">
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Audit Log</h1>
-                    <p className="text-muted">{totalLogs} entries total</p>
+                    <p className="page-subtitle">{totalLogs} entries total</p>
                 </div>
                 {hasFilter && (
-                    <a href="/audit" className="btn btn-secondary">✕ Clear all filters</a>
+                    <a href="/audit" className="btn btn-secondary btn-sm">Clear all filters</a>
                 )}
             </div>
 
-            {/* Date filter row */}
-            <div style={{ marginBottom: '0.75rem' }}>
+            {/* Filter toolbar */}
+            <div className="filter-toolbar">
                 <Suspense>
                     <DateDropdownFilter />
                 </Suspense>
@@ -133,9 +133,15 @@ export default async function AuditLogPage({
                     <tbody>
                         {logs.length === 0 && (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '2rem' }}>
-                                    No audit logs match this filter.{' '}
-                                    {hasFilter && <a href="/audit">Clear filters</a>}
+                                <td colSpan={6}>
+                                    <div className="empty-state">
+                                        <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                        </svg>
+                                        <p className="empty-state-title">No audit logs found</p>
+                                        <p className="empty-state-desc">{hasFilter ? 'No entries match your current filters.' : 'Audit events will appear here as actions are performed.'}</p>
+                                        {hasFilter && <a href="/audit" className="btn btn-secondary btn-sm" style={{ marginTop: '0.5rem' }}>Clear Filters</a>}
+                                    </div>
                                 </td>
                             </tr>
                         )}
@@ -143,7 +149,7 @@ export default async function AuditLogPage({
                             const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + i + 1
                             return (
                             <tr key={log.id}>
-                                <td className="text-muted" style={{ fontSize: '0.8rem' }}>{serialNumber}</td>
+                                <td className="text-muted text-xs">{serialNumber}</td>
                                 <td className="text-muted" style={{ fontSize: '0.8rem', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                     {formatDateTime(log.performedAt)}
                                 </td>
@@ -183,6 +189,6 @@ export default async function AuditLogPage({
             </div>
 
             <Pagination totalPages={totalPages} currentPage={currentPage} />
-        </>
+        </div>
     )
 }

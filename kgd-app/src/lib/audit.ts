@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
 
-type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE'
+type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'CANCEL'
 
 interface AuditOptions {
     entity: string

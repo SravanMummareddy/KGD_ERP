@@ -96,6 +96,104 @@ export async function updateProduct(productId: string, formData: FormData): Prom
     redirect('/products')
 }
 
+// ─── Delete Product (soft delete) ────────────────────────────────
+
+export async function deleteProduct(productId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    // Block if product is in any unpaid/partial invoice
+    const unpaidCount = await prisma.invoiceItem.count({
+        where: {
+            productId,
+            invoice: { status: { in: ['UNPAID', 'PARTIAL'] } },
+        },
+    })
+    if (unpaidCount > 0) {
+        return { error: `Cannot delete: product appears in ${unpaidCount} unpaid invoice(s).` }
+    }
+
+    const old = await prisma.product.findUnique({ where: { id: productId } })
+
+    try {
+        await prisma.product.update({
+            where: { id: productId },
+            data: { isActive: false, deletedAt: new Date(), deletedById: session.user.id } as object,
+        })
+    } catch {
+        await prisma.product.update({ where: { id: productId }, data: { isActive: false } })
+    }
+
+    await writeAuditLog({
+        entity: 'Product', entityId: productId, action: 'DELETE',
+        performedBy: session.user.id,
+        oldValues: { name: old?.name, type: old?.type },
+        newValues: { isActive: false, deletedAt: new Date().toISOString() },
+    })
+
+    revalidatePath('/products')
+    revalidatePath('/inventory')
+    revalidatePath('/admin/deleted')
+    return {}
+}
+
+// ─── Restore Product ──────────────────────────────────────────────
+
+export async function restoreProduct(productId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    const product = await prisma.product.findUnique({ where: { id: productId } })
+    if (!product) return { error: 'Product not found' }
+
+    try {
+        await prisma.product.update({
+            where: { id: productId },
+            data: { isActive: true, deletedAt: null, deletedById: null } as object,
+        })
+    } catch {
+        await prisma.product.update({ where: { id: productId }, data: { isActive: true } })
+    }
+
+    await writeAuditLog({
+        entity: 'Product', entityId: productId, action: 'RESTORE',
+        performedBy: session.user.id,
+        newValues: { name: product.name, restoredAt: new Date().toISOString() },
+    })
+
+    revalidatePath('/products')
+    revalidatePath('/admin/deleted')
+    return {}
+}
+
+// ─── Permanent Delete Product (ADMIN only) ────────────────────────
+
+export async function permanentDeleteProduct(productId: string): Promise<{ error?: string }> {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return { error: 'Not authorized' }
+
+    const product = await prisma.product.findUnique({
+        where: { id: productId },
+        include: { invoiceItems: { take: 1 } },
+    })
+    if (!product) return { error: 'Product not found' }
+    if (product.invoiceItems.length > 0) {
+        return { error: 'Cannot permanently delete: product has invoice history. Use soft delete instead.' }
+    }
+
+    await writeAuditLog({
+        entity: 'Product', entityId: productId, action: 'DELETE',
+        performedBy: session.user.id,
+        oldValues: { name: product.name, type: product.type, permanentDelete: true },
+    })
+
+    await prisma.product.delete({ where: { id: productId } })
+
+    revalidatePath('/products')
+    revalidatePath('/admin/deleted')
+    return {}
+}
+
 export async function adjustStock(
     productId: string,
     type: 'IN' | 'OUT',
